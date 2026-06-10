@@ -37,8 +37,9 @@ func RequestID(ctx context.Context) string {
 }
 
 // Ctx returns l enriched with trace_id/span_id (from the OTel span context)
-// and request_id, when present in ctx.
-func Ctx(ctx context.Context, l zerolog.Logger) zerolog.Logger {
+// and request_id, when present in ctx. Returns a pointer so pointer-receiver
+// methods (zerolog v1.35+) are callable on the return value directly.
+func Ctx(ctx context.Context, l zerolog.Logger) *zerolog.Logger {
 	lc := l.With()
 	if id := RequestID(ctx); id != "" {
 		lc = lc.Str("request_id", id)
@@ -47,5 +48,6 @@ func Ctx(ctx context.Context, l zerolog.Logger) zerolog.Logger {
 		lc = lc.Str("trace_id", sc.TraceID().String()).
 			Str("span_id", sc.SpanID().String())
 	}
-	return lc.Logger()
+	out := lc.Logger()
+	return &out
 }
