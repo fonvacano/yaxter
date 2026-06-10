@@ -2,7 +2,7 @@ GO ?= go
 OAPI_CODEGEN = go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1
 BUF = go run github.com/bufbuild/buf/cmd/buf@v1.47.2
 
-.PHONY: lint test test-integration build clean lint-spec generate up down
+.PHONY: lint test test-integration build clean lint-spec generate up down seed lint-proto
 
 lint:
 	golangci-lint run ./...
@@ -36,3 +36,9 @@ up:
 
 down:
 	docker compose down -v
+
+seed:
+	go run ./cmd/seed
+
+lint-proto:
+	$(BUF) lint
