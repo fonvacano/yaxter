@@ -49,7 +49,7 @@ func testFlow(t *testing.T, ident Identity) (*Flow, *pgxpool.Pool, *miniredis.Mi
 	m, err := migrate.New("file://../../../migrations", dsn)
 	require.NoError(t, err)
 	require.NoError(t, m.Up())
-	m.Close()
+	_, _ = m.Close()
 	pool, err := pgxkit.NewPool(ctx, dsn)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)

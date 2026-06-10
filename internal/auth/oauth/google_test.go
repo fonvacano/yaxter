@@ -54,7 +54,7 @@ func TestGoogleFullCodeDanceAgainstMock(t *testing.T) {
 	}}
 	res, err := client.Get(authURL)
 	require.NoError(t, err)
-	res.Body.Close()
+	_ = res.Body.Close()
 	require.Equal(t, http.StatusFound, res.StatusCode)
 	loc, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)

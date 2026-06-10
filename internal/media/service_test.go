@@ -33,7 +33,7 @@ func testService(t *testing.T) (*Service, *pgxpool.Pool) {
 	m, err := migrate.New("file://../../migrations", dsn)
 	require.NoError(t, err)
 	require.NoError(t, m.Up())
-	m.Close()
+	_, _ = m.Close()
 	pool, err := pgxkit.NewPool(ctx, dsn)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
@@ -50,7 +50,7 @@ func uploadVia(t *testing.T, ticket Ticket, body []byte, contentType string) {
 	req.Header.Set("Content-Type", contentType)
 	res, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
-	res.Body.Close()
+	_ = res.Body.Close()
 	require.Equal(t, http.StatusOK, res.StatusCode)
 }
 

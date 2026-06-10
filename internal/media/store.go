@@ -102,7 +102,7 @@ func (s *Store) Get(ctx context.Context, key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer out.Body.Close()
+	defer out.Body.Close() //nolint:errcheck
 	return io.ReadAll(out.Body)
 }
 

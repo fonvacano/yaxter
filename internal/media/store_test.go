@@ -50,7 +50,7 @@ func TestPresignedPutRoundtrip(t *testing.T) {
 	req.Header.Set("Content-Type", "image/png")
 	res, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
-	res.Body.Close()
+	_ = res.Body.Close()
 	require.Equal(t, http.StatusOK, res.StatusCode)
 
 	size, err := st.Head(ctx, uploadKey(42))

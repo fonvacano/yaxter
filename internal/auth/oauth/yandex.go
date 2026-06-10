@@ -73,7 +73,7 @@ func (y *Yandex) Identity(ctx context.Context, tok *Token) (Identity, error) {
 	if err != nil {
 		return Identity{}, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 	if res.StatusCode != http.StatusOK {
 		return Identity{}, fmt.Errorf("oauth: yandex info returned %d", res.StatusCode)
 	}
