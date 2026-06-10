@@ -50,3 +50,27 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: "1"
           ignore-unfixed: true
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Lint OpenAPI
+        run: npx -y @stoplight/spectral-cli lint --fail-severity=error api/openapi.yaml
+      - name: Lint protos
+        run: go run github.com/bufbuild/buf/cmd/buf@v1.47.2 lint
+      - name: Proto breaking-change gate
+        if: github.event_name == 'pull_request'
+        run: go run github.com/bufbuild/buf/cmd/buf@v1.47.2 breaking --against '.git#branch=origin/main'
+      - name: Generated code is up to date
+        run: |
+          make generate
+          git diff --exit-code
