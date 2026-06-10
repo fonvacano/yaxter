@@ -431,6 +431,159 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /timeline:
+    get:
+      tags: [timeline]
+      summary: Home timeline (hybrid fan-out merge, §2.1; eventual <5s)
+      operationId: getHomeTimeline
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Reverse-chron page; cursor is stable across new inserts (snowflake-based).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TweetPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/{username}/tweets:
+    get:
+      tags: [timeline]
+      summary: Profile timeline
+      operationId: getUserTweets
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Username'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: The user's tweets, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TweetPage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: List notifications (eventual, <30s)
+      operationId: listNotifications
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of notifications.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /notifications/unread_count:
+    get:
+      tags: [notifications]
+      summary: Unread badge counter
+      operationId: getUnreadCount
+      responses:
+        '200':
+          description: Count of unread notifications.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /notifications/read:
+    post:
+      tags: [notifications]
+      summary: Mark all notifications up to an ID as read
+      operationId: markNotificationsRead
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkReadRequest'
+      responses:
+        '204':
+          description: Marked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /media:
+    post:
+      tags: [media]
+      summary: Allocate media ID and pre-signed upload URL (§2.5)
+      operationId: createMedia
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMediaRequest'
+      responses:
+        '201':
+          description: Upload ticket; client PUTs directly to storage.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUploadTicket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /media/{id}:
+    get:
+      tags: [media]
+      summary: Media processing status
+      operationId: getMedia
+      parameters:
+        - $ref: '#/components/parameters/MediaId'
+      responses:
+        '200':
+          description: Status; poll until ready before attaching to a tweet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /media/{id}/complete:
+    post:
+      tags: [media]
+      summary: Confirm upload — verifies object exists, emits MediaUploaded via outbox
+      operationId: completeMedia
+      parameters:
+        - $ref: '#/components/parameters/MediaId'
+      responses:
+        '200':
+          description: Accepted for processing (status becomes uploaded).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Object not found in storage (client never PUT it).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
     bearerAuth:
@@ -719,6 +872,93 @@ components:
         next_cursor:
           type: string
           nullable: true
+    Notification:
+      type: object
+      required: [id, kind, actor, created_at, read]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        kind:
+          type: string
+          enum: [follow, like, retweet, oauth_link]
+        actor:
+          $ref: '#/components/schemas/UserSummary'
+        subject_id:
+          allOf:
+            - $ref: '#/components/schemas/Id'
+          nullable: true
+          description: Tweet ID for like/retweet; null for follow/oauth_link.
+        created_at:
+          type: string
+          format: date-time
+        read:
+          type: boolean
+    NotificationPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        next_cursor:
+          type: string
+          nullable: true
+    UnreadCount:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+    MarkReadRequest:
+      type: object
+      required: [up_to_id]
+      properties:
+        up_to_id:
+          $ref: '#/components/schemas/Id'
+    CreateMediaRequest:
+      type: object
+      required: [content_type, size_bytes]
+      properties:
+        content_type:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        size_bytes:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+    MediaUploadTicket:
+      type: object
+      required: [media_id, upload_url, expires_at]
+      properties:
+        media_id:
+          $ref: '#/components/schemas/Id'
+        upload_url:
+          type: string
+          description: Pre-signed PUT, scoped to exact key + content-length-range, 5-min expiry.
+        expires_at:
+          type: string
+          format: date-time
+    Media:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        status:
+          type: string
+          enum: [pending, uploaded, ready, failed]
+        urls:
+          type: object
+          nullable: true
+          description: Populated when status=ready.
+          properties:
+            thumb:
+              type: string
+            feed:
+              type: string
+            orig:
+              type: string
   responses:
     BadRequest:
       description: Malformed request or validation failure.
