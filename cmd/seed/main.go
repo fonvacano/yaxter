@@ -45,7 +45,7 @@ func main() {
 	}
 
 	rdb := redisx.NewClient(cfg.RedisAddr)
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		logger.Fatal().Err(err).Msg("redis unreachable")
 	}

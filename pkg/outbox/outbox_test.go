@@ -33,7 +33,7 @@ func setup(t *testing.T) (context.Context, *tcpostgres.PostgresContainer, string
 	m, err := migrate.New("file://../../migrations", dsn)
 	require.NoError(t, err)
 	require.NoError(t, m.Up())
-	m.Close()
+	_, _ = m.Close()
 	return ctx, ctr, dsn
 }
 

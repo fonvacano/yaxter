@@ -41,7 +41,7 @@ func TestMigrationsUpDownUp(t *testing.T) {
 
 	m, err := migrate.New("file://.", dsn)
 	require.NoError(t, err)
-	t.Cleanup(func() { m.Close() })
+	t.Cleanup(func() { _, _ = m.Close() })
 
 	require.NoError(t, m.Up())
 
