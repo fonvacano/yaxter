@@ -1,6 +1,6 @@
 # Event Contracts
 
-Source of truth: `proto/events/**`. No schema registry in the demo — the proto
+Source of truth: `proto/yaxter/events/**`. No schema registry in the demo — the proto
 package *is* the registry, enforced by `buf lint` + `buf breaking` in CI
 (ARCHITECTURE.md §2.4).
 
