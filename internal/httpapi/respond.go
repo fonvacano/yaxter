@@ -22,3 +22,11 @@ func unimplemented(w http.ResponseWriter) {
 }
 
 func formatID(id int64) string { return strconv.FormatInt(id, 10) }
+
+func requireUser(w http.ResponseWriter, r *http.Request) (int64, bool) {
+	uid, ok := UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "authentication required")
+	}
+	return uid, ok
+}

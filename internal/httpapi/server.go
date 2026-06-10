@@ -7,14 +7,22 @@ import (
 	"net/http"
 
 	"github.com/fonvacano/yaxter/internal/auth"
+	"github.com/fonvacano/yaxter/internal/tweets"
+	"github.com/fonvacano/yaxter/internal/users"
 )
 
 type Server struct {
-	Auth *AuthHandlers
+	Auth   *AuthHandlers
+	Users  *UsersHandlers
+	Tweets *TweetsHandlers
 }
 
-func NewServer(authSvc *auth.Service) *Server {
-	return &Server{Auth: &AuthHandlers{svc: authSvc}}
+func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string, tweetsSvc *tweets.Service) *Server {
+	return &Server{
+		Auth:   &AuthHandlers{svc: authSvc},
+		Users:  &UsersHandlers{svc: usersSvc, mediaBaseURL: mediaBaseURL},
+		Tweets: &TweetsHandlers{svc: tweetsSvc},
+	}
 }
 
 var _ ServerInterface = (*Server)(nil)
@@ -44,43 +52,51 @@ func (s *Server) OauthStart(w http.ResponseWriter, r *http.Request, provider Oau
 	unimplemented(w) // T1.6
 }
 
-func (s *Server) GetMe(w http.ResponseWriter, r *http.Request) { unimplemented(w) } // T1.2
+func (s *Server) GetMe(w http.ResponseWriter, r *http.Request) { s.Users.GetMe(w, r) }
 func (s *Server) UpdateMe(w http.ResponseWriter, r *http.Request, params UpdateMeParams) {
-	unimplemented(w) // T1.2
+	s.Users.UpdateMe(w, r)
 }
 func (s *Server) GetUser(w http.ResponseWriter, r *http.Request, username Username) {
-	unimplemented(w) // T1.2
+	s.Users.GetUser(w, r, username)
 }
 func (s *Server) UnfollowUser(w http.ResponseWriter, r *http.Request, username Username, params UnfollowUserParams) {
-	unimplemented(w) // T1.2
+	s.Users.UnfollowUser(w, r, username)
 }
 func (s *Server) FollowUser(w http.ResponseWriter, r *http.Request, username Username, params FollowUserParams) {
-	unimplemented(w) // T1.2
+	s.Users.FollowUser(w, r, username)
 }
 func (s *Server) ListFollowers(w http.ResponseWriter, r *http.Request, username Username, params ListFollowersParams) {
-	unimplemented(w) // T1.2
+	s.Users.ListFollowers(w, r, username, params)
 }
 func (s *Server) ListFollowing(w http.ResponseWriter, r *http.Request, username Username, params ListFollowingParams) {
-	unimplemented(w) // T1.2
+	s.Users.ListFollowing(w, r, username, params)
 }
 func (s *Server) GetUserTweets(w http.ResponseWriter, r *http.Request, username Username, params GetUserTweetsParams) {
 	unimplemented(w) // T2.4
 }
 
 func (s *Server) CreateTweet(w http.ResponseWriter, r *http.Request, params CreateTweetParams) {
-	unimplemented(w) // T1.3
+	s.Tweets.Create(w, r)
 }
 func (s *Server) DeleteTweet(w http.ResponseWriter, r *http.Request, id TweetId) {
-	unimplemented(w) // T1.3
+	s.Tweets.Delete(w, r, id)
 }
 func (s *Server) GetTweet(w http.ResponseWriter, r *http.Request, id TweetId) {
-	unimplemented(w) // T1.3
+	s.Tweets.Get(w, r, id)
 }
 func (s *Server) UnlikeTweet(w http.ResponseWriter, r *http.Request, id TweetId, params UnlikeTweetParams) {
-	unimplemented(w) // T1.3
+	if s.Tweets == nil {
+		unimplemented(w)
+		return
+	}
+	s.Tweets.setLike(w, r, id, false)
 }
 func (s *Server) LikeTweet(w http.ResponseWriter, r *http.Request, id TweetId, params LikeTweetParams) {
-	unimplemented(w) // T1.3
+	if s.Tweets == nil {
+		unimplemented(w)
+		return
+	}
+	s.Tweets.setLike(w, r, id, true)
 }
 
 func (s *Server) GetHomeTimeline(w http.ResponseWriter, r *http.Request, params GetHomeTimelineParams) {
