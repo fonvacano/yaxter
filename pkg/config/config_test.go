@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -29,4 +30,11 @@ func TestLoadFromEnv(t *testing.T) {
 	require.Equal(t, []string{"k1:9092", "k2:9092"}, cfg.KafkaBrokers)
 	require.Equal(t, []string{"relay", "fanout"}, cfg.WorkerRoles)
 	require.Equal(t, "postgres://u:p@h:5432/db", cfg.PostgresDSN)
+}
+
+func TestRelayConfigDefaults(t *testing.T) {
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, 200*time.Millisecond, cfg.RelayPollInterval)
+	require.Equal(t, 500, cfg.RelayBatchSize)
 }

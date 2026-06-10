@@ -12,11 +12,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 
+	"github.com/fonvacano/yaxter/internal/relay"
 	"github.com/fonvacano/yaxter/pkg/config"
+	"github.com/fonvacano/yaxter/pkg/kafkax"
 	logkit "github.com/fonvacano/yaxter/pkg/log"
 	otelkit "github.com/fonvacano/yaxter/pkg/otel"
+	pgxkit "github.com/fonvacano/yaxter/pkg/pgx"
 )
 
 func main() {
@@ -45,6 +50,10 @@ func main() {
 	logger.Info().Strs("roles", roles).Msg("worker starting")
 
 	for _, role := range roles {
+		if role == "relay" {
+			go runRelay(ctx, logger, cfg)
+			continue
+		}
 		go runRole(ctx, logger, role)
 	}
 
@@ -53,6 +62,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	mux.Handle("GET /metrics", promhttp.HandlerFor(metricsRegistry, promhttp.HandlerOpts{}))
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -66,6 +76,33 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(shutCtx)
 	_ = shutdownOtel(shutCtx)
+}
+
+// metricsRegistry is shared by all roles; /metrics is served from it.
+var metricsRegistry = prometheus.NewRegistry()
+
+func runRelay(ctx context.Context, logger zerolog.Logger, cfg config.Config) {
+	pool, err := pgxkit.NewPool(ctx, cfg.PostgresDSN)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("relay: postgres unreachable")
+	}
+	defer pool.Close()
+
+	client, err := kafkax.NewClient(cfg.KafkaBrokers)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("relay: kafka client")
+	}
+	defer client.Close()
+
+	rcfg := relay.DefaultConfig()
+	rcfg.PollInterval = cfg.RelayPollInterval
+	rcfg.BatchSize = cfg.RelayBatchSize
+
+	r := relay.New(pool, relay.NewKafkaPublisher(client), rcfg,
+		relay.NewMetrics(metricsRegistry), logger.With().Str("role", "relay").Logger())
+	if err := r.Run(ctx); err != nil && ctx.Err() == nil {
+		logger.Fatal().Err(err).Msg("relay exited")
+	}
 }
 
 // runRole is a placeholder loop; each role is replaced by its real
