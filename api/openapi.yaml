@@ -18,7 +18,195 @@ servers:
   - url: /v1
 security:
   - bearerAuth: []
-paths: {}
+paths:
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Create an account
+      operationId: register
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created; standard token pair issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Log in with username/email + password
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Token pair issued. OAuth-only accounts (no password) get a uniform 401.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate the refresh token, issue a new pair
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New pair; old refresh token is revoked (rotation). Reuse of a rotated token revokes the whole family.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke the current refresh-token family
+      operationId: logout
+      responses:
+        '204':
+          description: Logged out.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/providers:
+    get:
+      tags: [auth]
+      summary: List enabled OAuth providers (config-driven)
+      operationId: listAuthProviders
+      security: []
+      responses:
+        '200':
+          description: Enabled providers; clients render only these buttons.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderList'
+  /auth/oauth/{provider}/start:
+    get:
+      tags: [auth]
+      summary: Begin the authorization-code + PKCE dance
+      operationId: oauthStart
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+        - name: redirect_to
+          in: query
+          description: SPA route to return to after callback (validated allowlist).
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the provider with state + PKCE challenge.
+          headers:
+            Location:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/oauth/{provider}/callback:
+    get:
+      tags: [auth]
+      summary: Provider callback — exchange code, upsert identity, issue tokens
+      operationId: oauthCallback
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Same shape as login. State is single-use; replays get 400.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/oauth/{provider}/link:
+    post:
+      tags: [auth]
+      summary: Start linking a provider to the authenticated account
+      operationId: oauthLink
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+      responses:
+        '200':
+          description: URL to complete linking at the provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkStartResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [auth]
+      summary: Unlink a provider
+      operationId: oauthUnlink
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+      responses:
+        '204':
+          description: Unlinked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Refused — unlinking would leave the account with no credential (OAuth-only account, no password).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
     bearerAuth:
@@ -89,6 +277,130 @@ components:
           description: Machine-readable code, e.g. validation_failed.
         message:
           type: string
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          pattern: '^[A-Za-z0-9_]{3,30}$'
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          description: Username or email.
+        password:
+          type: string
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          description: Omit when the HttpOnly refresh cookie is present (web).
+    TokenPair:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Access-token lifetime in seconds (900 = 15 min).
+        refresh_token:
+          type: string
+          description: Returned in the body for non-web clients; web clients get a SameSite=Strict HttpOnly cookie instead.
+    UserSummary:
+      type: object
+      required: [id, username]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        username:
+          type: string
+        avatar_url:
+          type: string
+          nullable: true
+    User:
+      type: object
+      required: [id, username, bio, followers_count, following_count, created_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        username:
+          type: string
+        bio:
+          type: string
+        avatar_url:
+          type: string
+          nullable: true
+        followers_count:
+          type: integer
+        following_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    PrivateUser:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required: [email, has_password, linked_providers]
+          properties:
+            email:
+              type: string
+              format: email
+            has_password:
+              type: boolean
+              description: false for OAuth-only accounts (pass_hash NULL).
+            linked_providers:
+              type: array
+              items:
+                type: string
+    AuthResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user:
+          $ref: '#/components/schemas/PrivateUser'
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+    OAuthProviderInfo:
+      type: object
+      required: [name, display_name, start_url]
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        start_url:
+          type: string
+    ProviderList:
+      type: object
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/OAuthProviderInfo'
+    LinkStartResponse:
+      type: object
+      required: [auth_url]
+      properties:
+        auth_url:
+          type: string
+          description: Provider URL to complete linking in the browser.
   responses:
     BadRequest:
       description: Malformed request or validation failure.
