@@ -81,3 +81,40 @@ jobs:
         run: |
           make generate
           git diff --exit-code
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Generated client is up to date
+        run: |
+          npm run generate
+          git diff --exit-code ../web/src/api
+      - run: npm run build
+      - name: Bundle budget (< 300 KB gz)
+        run: |
+          total=0
+          for f in dist/assets/*.js; do
+            size=$(gzip -c "$f" | wc -c)
+            total=$((total + size))
+          done
+          echo "gzipped js total: $total bytes"
+          test "$total" -lt 307200
+      - name: E2E smoke vs mock
+        run: |
+          npx playwright install --with-deps chromium
+          npm run e2e
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
