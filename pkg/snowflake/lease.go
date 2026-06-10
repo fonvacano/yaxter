@@ -24,25 +24,29 @@ const leaseDDL = `
 CREATE TABLE IF NOT EXISTS node_ids (
     node_id      INT PRIMARY KEY,
     leased_by    TEXT        NOT NULL,
-    heartbeat_at TIMESTAMPTZ NOT NULL
+    heartbeat_at TIMESTAMPTZ NOT NULL,
+    expires_at   TIMESTAMPTZ NOT NULL
 )`
 
 // claimSQL claims the lowest node id that is either unused or expired.
-// The WHERE on the conflict update makes a non-expired row un-stealable;
-// in that race the statement returns no row and we retry.
+// expires_at is set at write time using the issuer's TTL, so expiry is
+// checked against the row's own deadline — not the acquirer's TTL.
+// The WHERE on the conflict update makes a non-expired row un-stealable.
 const claimSQL = `
-INSERT INTO node_ids (node_id, leased_by, heartbeat_at)
-SELECT n.id, $1, now()
+INSERT INTO node_ids (node_id, leased_by, heartbeat_at, expires_at)
+SELECT n.id, $1, now(), now() + $2::interval
 FROM generate_series(0, $3::int) AS n(id)
 WHERE NOT EXISTS (
     SELECT 1 FROM node_ids t
-    WHERE t.node_id = n.id AND t.heartbeat_at > now() - $2::interval
+    WHERE t.node_id = n.id AND t.expires_at > now()
 )
 ORDER BY n.id
 LIMIT 1
 ON CONFLICT (node_id) DO UPDATE
-    SET leased_by = EXCLUDED.leased_by, heartbeat_at = now()
-    WHERE node_ids.heartbeat_at <= now() - $2::interval
+    SET leased_by    = EXCLUDED.leased_by,
+        heartbeat_at = now(),
+        expires_at   = now() + $2::interval
+    WHERE node_ids.expires_at <= now()
 RETURNING node_id`
 
 // AcquireLease claims a free (or expired) node id, retrying a few times on
@@ -72,9 +76,10 @@ func (l *Lease) NodeID() int64 { return l.nodeID }
 // Heartbeat extends the lease. An error here means the lease may have been
 // stolen; callers should treat repeated failures as fatal.
 func (l *Lease) Heartbeat(ctx context.Context) error {
+	interval := fmt.Sprintf("%d milliseconds", l.ttl.Milliseconds())
 	tag, err := l.pool.Exec(ctx,
-		`UPDATE node_ids SET heartbeat_at = now() WHERE node_id = $1 AND leased_by = $2`,
-		l.nodeID, l.owner)
+		`UPDATE node_ids SET heartbeat_at = now(), expires_at = now() + $3::interval WHERE node_id = $1 AND leased_by = $2`,
+		l.nodeID, l.owner, interval)
 	if err != nil {
 		return err
 	}

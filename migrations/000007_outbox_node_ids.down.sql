@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS node_ids;
+DROP TABLE outbox;

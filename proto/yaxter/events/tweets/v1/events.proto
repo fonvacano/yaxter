@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package yaxter.events.tweets.v1;
+
+import "yaxter/events/common/v1/envelope.proto";
+
+option go_package = "github.com/fonvacano/yaxter/gen/yaxter/events/tweets/v1;tweetsv1";
+
+message TweetCreated {
+  int64 tweet_id = 1;
+  int64 author_id = 2;
+  string text = 3;
+  int64 retweet_of_id = 4; // 0 = not a retweet
+  repeated int64 media_ids = 5;
+  // Snapshot at write time; fan-out compares it to CELEBRITY_THRESHOLD
+  // without an extra lookup.
+  int32 author_followers_count = 6;
+}
+
+message TweetDeleted {
+  int64 tweet_id = 1;
+  int64 author_id = 2;
+}
+
+message TweetEvent {
+  yaxter.events.common.v1.Envelope envelope = 1;
+  oneof payload {
+    TweetCreated created = 2;
+    TweetDeleted deleted = 3;
+  }
+}
