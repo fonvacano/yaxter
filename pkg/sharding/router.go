@@ -64,6 +64,13 @@ func (r *Router) ForEachShard(keys []int64, fn func(pool *pgxpool.Pool, keys []i
 	})
 }
 
+// GlobalPool returns the pool hosting the global lookup tables and globally
+// unique constraints (§2.2). Demo: the first configured physical. A future
+// shard split assigns them an explicit home here — single seam.
+func (r *Router) GlobalPool() *pgxpool.Pool {
+	return r.pools[r.m.physicals[0].Name]
+}
+
 func (r *Router) Close() {
 	for _, p := range r.pools {
 		p.Close()

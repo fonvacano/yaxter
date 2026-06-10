@@ -84,4 +84,8 @@ func TestRouterPoolsAgainstRealPG(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, calls, "single physical => single batch")
+
+	var g int
+	require.NoError(t, r.GlobalPool().QueryRow(ctx, "SELECT 2").Scan(&g))
+	require.Equal(t, 2, g)
 }

@@ -21,6 +21,9 @@ type Config struct {
 	SampleRatio       float64       `env:"OTEL_SAMPLE_RATIO" envDefault:"1.0"`
 	RelayPollInterval time.Duration `env:"RELAY_POLL_INTERVAL" envDefault:"200ms"`
 	RelayBatchSize    int           `env:"RELAY_BATCH_SIZE" envDefault:"500"`
+	AuthJWTKid        string        `env:"AUTH_JWT_KID" envDefault:"dev-1"`
+	AuthJWTSeedB64    string        `env:"AUTH_JWT_SEED_B64"`
+	AuthRateLimit     int           `env:"AUTH_RATE_LIMIT" envDefault:"20"`
 }
 
 func Load() (Config, error) {

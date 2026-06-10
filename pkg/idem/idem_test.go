@@ -75,6 +75,32 @@ func TestDuplicateReplaysCachedResponse(t *testing.T) {
 	require.EqualValues(t, 1, calls.Load(), "handler must run exactly once")
 }
 
+func TestSkipPredicateBypassesMutatingRoute(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	var calls atomic.Int32
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := New(rdb, 24*time.Hour).Skip(func(r *http.Request) bool {
+		return r.URL.Path == "/v1/auth/login"
+	})
+	h := mw.Wrap(inner)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", nil) // no Idempotency-Key
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.EqualValues(t, 1, calls.Load())
+
+	// Non-skipped mutating routes still require the key.
+	req = httptest.NewRequest(http.MethodPost, "/v1/tweets", nil)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
 func TestInFlightDuplicateConflicts(t *testing.T) {
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})

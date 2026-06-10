@@ -24,12 +24,21 @@ type record struct {
 }
 
 type Middleware struct {
-	rdb *redis.Client
-	ttl time.Duration
+	rdb  *redis.Client
+	ttl  time.Duration
+	skip func(*http.Request) bool
 }
 
 func New(rdb *redis.Client, ttl time.Duration) *Middleware {
 	return &Middleware{rdb: rdb, ttl: ttl}
+}
+
+// Skip exempts requests matching pred from the Idempotency-Key requirement.
+// The OpenAPI contract exempts token-issuance routes (login/refresh/logout,
+// OAuth) — they are rate-limited instead.
+func (m *Middleware) Skip(pred func(*http.Request) bool) *Middleware {
+	m.skip = pred
+	return m
 }
 
 // recorder tees the response to the client while buffering it for storage.
@@ -62,7 +71,7 @@ func mutating(method string) bool {
 
 func (m *Middleware) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !mutating(r.Method) {
+		if !mutating(r.Method) || (m.skip != nil && m.skip(r)) {
 			next.ServeHTTP(w, r)
 			return
 		}

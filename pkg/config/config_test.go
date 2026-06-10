@@ -18,6 +18,13 @@ func TestLoadDefaults(t *testing.T) {
 	require.Empty(t, cfg.WorkerRoles)
 }
 
+func TestAuthConfigDefaults(t *testing.T) {
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "dev-1", cfg.AuthJWTKid)
+	require.Equal(t, 20, cfg.AuthRateLimit)
+}
+
 func TestLoadFromEnv(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("KAFKA_BROKERS", "k1:9092,k2:9092")
