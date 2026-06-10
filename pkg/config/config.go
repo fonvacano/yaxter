@@ -13,8 +13,11 @@ type Config struct {
 	RedisAddr    string   `env:"REDIS_ADDR" envDefault:"localhost:6379"`
 	KafkaBrokers []string `env:"KAFKA_BROKERS" envSeparator:","`
 	WorkerRoles  []string `env:"WORKER_ROLES" envSeparator:","`
-	OTLPEndpoint string   `env:"OTLP_ENDPOINT"`
-	SampleRatio  float64  `env:"OTEL_SAMPLE_RATIO" envDefault:"1.0"`
+	OTLPEndpoint   string  `env:"OTLP_ENDPOINT"`
+	SampleRatio    float64 `env:"OTEL_SAMPLE_RATIO" envDefault:"1.0"`
+	AuthJWTKid     string  `env:"AUTH_JWT_KID" envDefault:"dev-1"`
+	AuthJWTSeedB64 string  `env:"AUTH_JWT_SEED_B64"` // 32-byte ed25519 seed, base64; empty => ephemeral (dev only)
+	AuthRateLimit  int     `env:"AUTH_RATE_LIMIT" envDefault:"20"` // per IP per window
 }
 
 func Load() (Config, error) {
