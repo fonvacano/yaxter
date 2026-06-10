@@ -69,7 +69,12 @@ jobs:
         run: go run github.com/bufbuild/buf/cmd/buf@v1.47.2 lint
       - name: Proto breaking-change gate
         if: github.event_name == 'pull_request'
-        run: go run github.com/bufbuild/buf/cmd/buf@v1.47.2 breaking --against '.git#branch=origin/main'
+        run: |
+          if git ls-tree -r origin/main --name-only 2>/dev/null | grep -q '\.proto$'; then
+            go run github.com/bufbuild/buf/cmd/buf@v1.47.2 breaking --against '.git#branch=origin/main'
+          else
+            echo "No .proto files on origin/main — skipping breaking-change check (first introduction)"
+          fi
       - name: Generated code is up to date
         run: |
           make generate
