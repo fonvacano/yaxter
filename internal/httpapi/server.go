@@ -7,14 +7,19 @@ import (
 	"net/http"
 
 	"github.com/fonvacano/yaxter/internal/auth"
+	"github.com/fonvacano/yaxter/internal/users"
 )
 
 type Server struct {
-	Auth *AuthHandlers
+	Auth  *AuthHandlers
+	Users *UsersHandlers
 }
 
-func NewServer(authSvc *auth.Service) *Server {
-	return &Server{Auth: &AuthHandlers{svc: authSvc}}
+func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string) *Server {
+	return &Server{
+		Auth:  &AuthHandlers{svc: authSvc},
+		Users: &UsersHandlers{svc: usersSvc, mediaBaseURL: mediaBaseURL},
+	}
 }
 
 var _ ServerInterface = (*Server)(nil)
@@ -44,24 +49,24 @@ func (s *Server) OauthStart(w http.ResponseWriter, r *http.Request, provider Oau
 	unimplemented(w) // T1.6
 }
 
-func (s *Server) GetMe(w http.ResponseWriter, r *http.Request) { unimplemented(w) } // T1.2
+func (s *Server) GetMe(w http.ResponseWriter, r *http.Request) { s.Users.GetMe(w, r) }
 func (s *Server) UpdateMe(w http.ResponseWriter, r *http.Request, params UpdateMeParams) {
-	unimplemented(w) // T1.2
+	s.Users.UpdateMe(w, r)
 }
 func (s *Server) GetUser(w http.ResponseWriter, r *http.Request, username Username) {
-	unimplemented(w) // T1.2
+	s.Users.GetUser(w, r, username)
 }
 func (s *Server) UnfollowUser(w http.ResponseWriter, r *http.Request, username Username, params UnfollowUserParams) {
-	unimplemented(w) // T1.2
+	s.Users.UnfollowUser(w, r, username)
 }
 func (s *Server) FollowUser(w http.ResponseWriter, r *http.Request, username Username, params FollowUserParams) {
-	unimplemented(w) // T1.2
+	s.Users.FollowUser(w, r, username)
 }
 func (s *Server) ListFollowers(w http.ResponseWriter, r *http.Request, username Username, params ListFollowersParams) {
-	unimplemented(w) // T1.2
+	s.Users.ListFollowers(w, r, username, params)
 }
 func (s *Server) ListFollowing(w http.ResponseWriter, r *http.Request, username Username, params ListFollowingParams) {
-	unimplemented(w) // T1.2
+	s.Users.ListFollowing(w, r, username, params)
 }
 func (s *Server) GetUserTweets(w http.ResponseWriter, r *http.Request, username Username, params GetUserTweetsParams) {
 	unimplemented(w) // T2.4
