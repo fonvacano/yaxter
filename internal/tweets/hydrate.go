@@ -6,20 +6,18 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/fonvacano/yaxter/internal/counters"
 )
 
-// HydratedTweet is a Tweet plus its author projection. The author comes from
-// a local query (plan deviation #4 — no cross-module import); counters come
-// from the PG columns here and are upgraded to the Redis read-through by the
-// counters track (T1.4) — on merge conflict, the counters version wins.
+// HydratedTweet extends Tweet with author info resolved at read time.
 type HydratedTweet struct {
 	Tweet
 	AuthorUsername  string
 	AuthorAvatarKey *string
 }
 
-// Get fetches a single tweet by ID, joining the author's username and
-// avatar_key from the users table. Returns ErrNotFound when absent.
+// Get loads a tweet with author info and live counter values (Redis read-through §2.7).
 func (s *Service) Get(ctx context.Context, tweetID int64) (HydratedTweet, error) {
 	var h HydratedTweet
 	var retweetOf *int64
@@ -42,6 +40,11 @@ func (s *Service) Get(ctx context.Context, tweetID int64) (HydratedTweet, error)
 	}
 	if len(mediaJSON) > 0 {
 		_ = json.Unmarshal(mediaJSON, &h.MediaIDs)
+	}
+	// counters served from hot hash, PG as fallback (§2.7 step 3)
+	likes, retweets, cErr := counters.Read(ctx, s.rdb, s.db, tweetID)
+	if cErr == nil {
+		h.LikesCount, h.RetweetsCount = likes, retweets
 	}
 	return h, nil
 }
