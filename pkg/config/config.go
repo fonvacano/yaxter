@@ -26,6 +26,12 @@ type Config struct {
 	AuthRateLimit      int           `env:"AUTH_RATE_LIMIT" envDefault:"20"`
 	CelebrityThreshold int           `env:"CELEBRITY_THRESHOLD" envDefault:"50"`
 	MediaBaseURL       string        `env:"MEDIA_BASE_URL" envDefault:"http://localhost:9000/media"`
+	S3Endpoint         string        `env:"S3_ENDPOINT" envDefault:"http://localhost:9000"`
+	S3Region           string        `env:"S3_REGION" envDefault:"ru-central1"`
+	S3AccessKeyID      string        `env:"S3_ACCESS_KEY_ID" envDefault:"yaxter"`
+	S3SecretAccessKey  string        `env:"S3_SECRET_ACCESS_KEY" envDefault:"yaxter123"`
+	S3MediaBucket      string        `env:"S3_MEDIA_BUCKET" envDefault:"media"`
+	S3UsePathStyle     bool          `env:"S3_USE_PATH_STYLE" envDefault:"true"`
 }
 
 func Load() (Config, error) {
