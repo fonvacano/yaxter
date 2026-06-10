@@ -2,7 +2,7 @@ GO ?= go
 OAPI_CODEGEN = go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1
 BUF = go run github.com/bufbuild/buf/cmd/buf@v1.47.2
 
-.PHONY: lint test test-integration build clean lint-spec generate
+.PHONY: lint test test-integration build clean lint-spec generate up down
 
 lint:
 	golangci-lint run ./...
@@ -27,3 +27,12 @@ generate:
 	$(OAPI_CODEGEN) -config api/server.cfg.yaml api/openapi.yaml
 	$(OAPI_CODEGEN) -config api/client.cfg.yaml api/openapi.yaml
 	$(BUF) generate
+
+up:
+	docker compose up -d --wait postgres redis kafka minio jaeger mock-oauth
+	docker compose run --rm migrate
+	docker compose run --rm kafka-init
+	docker compose run --rm minio-init
+
+down:
+	docker compose down -v
