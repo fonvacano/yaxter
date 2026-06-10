@@ -85,6 +85,35 @@ func TestRefreshAndLogoutFlow(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidRefresh)
 }
 
+func TestTokenPairForAndUserInfo(t *testing.T) {
+	pool := authTestPool(t)
+	svc := newService(t, pool)
+	ctx := context.Background()
+
+	u, _, err := svc.Register(ctx, "erin", "erin@example.com", "password123")
+	require.NoError(t, err)
+
+	pair, err := svc.TokenPairFor(ctx, u.ID)
+	require.NoError(t, err)
+	uid, err := svc.Issuer().Verify(pair.Access)
+	require.NoError(t, err)
+	require.Equal(t, u.ID, uid)
+
+	info, providers, err := svc.UserInfo(ctx, u.ID)
+	require.NoError(t, err)
+	require.Equal(t, "erin", info.Username)
+	require.True(t, info.HasPassword)
+	require.Empty(t, providers)
+
+	_, err = pool.Exec(ctx, `
+		INSERT INTO identities (user_id, provider, provider_user_id)
+		VALUES ($1, 'yandex', 'y-1')`, u.ID)
+	require.NoError(t, err)
+	_, providers, err = svc.UserInfo(ctx, u.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"yandex"}, providers)
+}
+
 func TestLoginRejectsOAuthOnlyAccountUniformly(t *testing.T) {
 	pool := authTestPool(t)
 	svc := newService(t, pool)

@@ -21,6 +21,7 @@ var allTables = []string{
 	"refresh_tokens", "idempotency",
 	"outbox", "node_ids",
 	"media",
+	"audit_log",
 }
 
 func TestMigrationsUpDownUp(t *testing.T) {

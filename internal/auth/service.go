@@ -20,11 +20,12 @@ var (
 )
 
 type User struct {
-	ID        int64
-	Username  string
-	Email     string
-	Bio       string
-	CreatedAt time.Time
+	ID          int64
+	Username    string
+	Email       string
+	Bio         string
+	CreatedAt   time.Time
+	HasPassword bool
 }
 
 type TokenPair struct {
@@ -122,4 +123,39 @@ func (s *Service) Refresh(ctx context.Context, token string) (TokenPair, error) 
 
 func (s *Service) Logout(ctx context.Context, token string) error {
 	return s.refresh.RevokeFamilyByToken(ctx, token)
+}
+
+// TokenPairFor issues a fresh pair for an externally-authenticated user —
+// OAuth reuses (never reimplements) the session machinery (§2.8 / T1.6).
+func (s *Service) TokenPairFor(ctx context.Context, userID int64) (TokenPair, error) {
+	return s.pair(ctx, userID)
+}
+
+// UserInfo loads the profile plus linked provider names (PrivateUser fields).
+func (s *Service) UserInfo(ctx context.Context, userID int64) (User, []string, error) {
+	var u User
+	var hasPassword bool
+	err := s.db.QueryRow(ctx, `
+		SELECT id, username, email, bio, created_at, pass_hash IS NOT NULL
+		FROM users WHERE id = $1`, userID).
+		Scan(&u.ID, &u.Username, &u.Email, &u.Bio, &u.CreatedAt, &hasPassword)
+	if err != nil {
+		return User{}, nil, err
+	}
+	u.HasPassword = hasPassword
+	rows, err := s.db.Query(ctx,
+		`SELECT provider FROM identities WHERE user_id = $1 ORDER BY provider`, userID)
+	if err != nil {
+		return User{}, nil, err
+	}
+	defer rows.Close()
+	providers := []string{}
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return User{}, nil, err
+		}
+		providers = append(providers, p)
+	}
+	return u, providers, rows.Err()
 }
