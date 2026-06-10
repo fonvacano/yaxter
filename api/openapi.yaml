@@ -113,6 +113,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProviderList'
+              example:
+                providers:
+                  - name: yandex
+                    display_name: Yandex
+                    start_url: /v1/auth/oauth/yandex/start
   /auth/oauth/{provider}/start:
     get:
       tags: [auth]

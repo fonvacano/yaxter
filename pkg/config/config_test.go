@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +18,13 @@ func TestLoadDefaults(t *testing.T) {
 	require.Empty(t, cfg.WorkerRoles)
 }
 
+func TestAuthConfigDefaults(t *testing.T) {
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "dev-1", cfg.AuthJWTKid)
+	require.Equal(t, 20, cfg.AuthRateLimit)
+}
+
 func TestLoadFromEnv(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("KAFKA_BROKERS", "k1:9092,k2:9092")
@@ -29,4 +37,11 @@ func TestLoadFromEnv(t *testing.T) {
 	require.Equal(t, []string{"k1:9092", "k2:9092"}, cfg.KafkaBrokers)
 	require.Equal(t, []string{"relay", "fanout"}, cfg.WorkerRoles)
 	require.Equal(t, "postgres://u:p@h:5432/db", cfg.PostgresDSN)
+}
+
+func TestRelayConfigDefaults(t *testing.T) {
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, 200*time.Millisecond, cfg.RelayPollInterval)
+	require.Equal(t, 500, cfg.RelayBatchSize)
 }
