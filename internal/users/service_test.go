@@ -34,7 +34,7 @@ func testService(t *testing.T) (*Service, *pgxpool.Pool, *miniredis.Miniredis) {
 	m, err := migrate.New("file://../../migrations", dsn)
 	require.NoError(t, err)
 	require.NoError(t, m.Up())
-	m.Close()
+	m.Close() //nolint:errcheck
 	pool, err := pgxkit.NewPool(ctx, dsn)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
@@ -76,7 +76,7 @@ func TestUpdateProfileDeletesCache(t *testing.T) {
 	svc, pool, mr := testService(t)
 	ctx := context.Background()
 	seedUser(t, pool, 10, "dave")
-	mr.Set(fmt.Sprintf("usr:%d", 10), "stale")
+	_ = mr.Set(fmt.Sprintf("usr:%d", 10), "stale")
 
 	u, err := svc.UpdateProfile(ctx, 10, UpdateProfile{Bio: ptr("hello")})
 	require.NoError(t, err)

@@ -41,7 +41,7 @@ func TestEmitWritesOutboxRowInCallersTx(t *testing.T) {
 	m, err := migrate.New("file://../../migrations", dsn)
 	require.NoError(t, err)
 	require.NoError(t, m.Up())
-	m.Close()
+	m.Close() //nolint:errcheck
 	pool, err := pgxkit.NewPool(ctx, dsn)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)

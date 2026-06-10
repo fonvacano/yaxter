@@ -164,7 +164,8 @@ func TestAuthRateLimitOverHTTP(t *testing.T) {
 
 func TestUnimplementedRoutesReturn501(t *testing.T) {
 	h := liveHandler(t, 100)
-	req := httptest.NewRequest(http.MethodGet, "/v1/users/someone", nil)
+	// /v1/timeline is T2.4 — still unimplemented
+	req := httptest.NewRequest(http.MethodGet, "/v1/timeline", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusNotImplemented, rr.Code)

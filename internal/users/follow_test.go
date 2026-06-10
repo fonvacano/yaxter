@@ -77,7 +77,7 @@ func TestFollowingACelebrityInvalidatesCelebsCache(t *testing.T) {
 	seedUser(t, pool, 2, "celeb")
 	_, err := pool.Exec(ctx, `UPDATE users SET followers_count = 60 WHERE id = 2`)
 	require.NoError(t, err)
-	mr.Set(fmt.Sprintf("celebs:%d", 1), "stale")
+	_ = mr.Set(fmt.Sprintf("celebs:%d", 1), "stale")
 
 	require.NoError(t, svc.Follow(ctx, 1, "celeb"))
 	require.False(t, mr.Exists("celebs:1"),

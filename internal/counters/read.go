@@ -15,8 +15,8 @@ func Read(ctx context.Context, rdb *redis.Client, db *pgxpool.Pool, tweetID int6
 	vals, err := rdb.HGetAll(ctx, key).Result()
 	if err == nil && len(vals) > 0 {
 		var likes, retweets int
-		fmt.Sscan(vals["likes"], &likes)
-		fmt.Sscan(vals["retweets"], &retweets)
+		_, _ = fmt.Sscan(vals["likes"], &likes)
+		_, _ = fmt.Sscan(vals["retweets"], &retweets)
 		return likes, retweets, nil
 	}
 	var likes, retweets int

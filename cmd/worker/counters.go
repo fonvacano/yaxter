@@ -24,7 +24,7 @@ func runCounters(ctx context.Context, logger zerolog.Logger, cfg config.Config) 
 	}
 	defer pool.Close()
 	rdb := redisx.NewClient(cfg.RedisAddr)
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 
 	client, err := kafkax.NewClient(cfg.KafkaBrokers,
 		kgo.ConsumerGroup(kafkax.GroupID("counters")),
