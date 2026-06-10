@@ -94,7 +94,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
+      - run: npm install
       - name: Generated client is up to date
         run: |
           npm run generate
