@@ -32,6 +32,17 @@ type Config struct {
 	S3SecretAccessKey  string        `env:"S3_SECRET_ACCESS_KEY" envDefault:"yaxter123"`
 	S3MediaBucket      string        `env:"S3_MEDIA_BUCKET" envDefault:"media"`
 	S3UsePathStyle     bool          `env:"S3_USE_PATH_STYLE" envDefault:"true"`
+
+	OAuthProviders     []string `env:"OAUTH_PROVIDERS" envSeparator:"," envDefault:"yandex"`
+	OAuthRedirectBase  string   `env:"OAUTH_REDIRECT_BASE" envDefault:"http://localhost:8080"`
+	YandexClientID     string   `env:"OAUTH_YANDEX_CLIENT_ID"`
+	YandexClientSecret string   `env:"OAUTH_YANDEX_CLIENT_SECRET"`
+	YandexAuthURL      string   `env:"OAUTH_YANDEX_AUTH_URL"`  // test/dev override
+	YandexTokenURL     string   `env:"OAUTH_YANDEX_TOKEN_URL"` // test/dev override
+	YandexInfoURL      string   `env:"OAUTH_YANDEX_INFO_URL"`  // test/dev override
+	GoogleClientID     string   `env:"OAUTH_GOOGLE_CLIENT_ID"`
+	GoogleClientSecret string   `env:"OAUTH_GOOGLE_CLIENT_SECRET"`
+	GoogleIssuer       string   `env:"OAUTH_GOOGLE_ISSUER"` // mock override; default accounts.google.com
 }
 
 func Load() (Config, error) {

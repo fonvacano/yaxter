@@ -9,6 +9,8 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/fonvacano/yaxter/internal/auth"
+	"github.com/fonvacano/yaxter/internal/auth/oauth"
+	"github.com/fonvacano/yaxter/internal/media"
 	"github.com/fonvacano/yaxter/internal/tweets"
 	"github.com/fonvacano/yaxter/internal/users"
 	"github.com/fonvacano/yaxter/pkg/idem"
@@ -25,6 +27,9 @@ type Deps struct {
 	AuthRateLimit      int
 	CelebrityThreshold int
 	MediaBaseURL       string
+	MediaStore         *media.Store
+	OAuthProviders     map[string]oauth.Provider
+	OAuthRedirectBase  string
 }
 
 // idemSkip exempts token-issuance routes from Idempotency-Key (deviation #4
@@ -48,7 +53,9 @@ func NewHandler(d Deps) (http.Handler, error) {
 		auth.NewRefreshStore(d.DB, d.IDs, 30*24*time.Hour))
 	usersSvc := users.NewService(d.DB, d.Redis, d.IDs, d.CelebrityThreshold)
 	tweetsSvc := tweets.NewService(d.DB, d.Redis, d.IDs)
-	srv := NewServer(svc, usersSvc, d.MediaBaseURL, tweetsSvc)
+	mediaSvc := media.NewService(d.DB, d.MediaStore, d.IDs)
+	oauthFlow := oauth.NewFlow(d.DB, d.Redis, d.IDs, d.OAuthProviders, d.OAuthRedirectBase)
+	srv := NewServer(svc, usersSvc, d.MediaBaseURL, tweetsSvc, mediaSvc, oauthFlow)
 
 	h := HandlerWithOptions(srv, StdHTTPServerOptions{BaseURL: "/v1"})
 	h = BearerAuth(issuer.Verify)(h)

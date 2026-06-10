@@ -25,6 +25,15 @@ func TestAuthConfigDefaults(t *testing.T) {
 	require.Equal(t, 20, cfg.AuthRateLimit)
 }
 
+func TestOAuthConfigDefaults(t *testing.T) {
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, []string{"yandex"}, cfg.OAuthProviders)
+	require.Equal(t, "http://localhost:8080", cfg.OAuthRedirectBase)
+	require.Empty(t, cfg.YandexClientID)
+	require.Empty(t, cfg.GoogleClientID)
+}
+
 func TestLoadFromEnv(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("KAFKA_BROKERS", "k1:9092,k2:9092")
