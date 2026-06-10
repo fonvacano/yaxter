@@ -2,6 +2,8 @@ package oauth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -47,8 +49,14 @@ func TestGoogleFullCodeDanceAgainstMock(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "google", p.Name())
 
+	// Real PKCE pair: the mock enforces a >=43-char verifier whose S256 hash
+	// matches the challenge sent at /authorize.
+	verifier := "test-verifier-0123456789012345678901234567890123456789"
+	sum := sha256.Sum256([]byte(verifier))
+	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
+
 	// Non-interactive mock: GET /authorize 302s straight back with a code.
-	authURL := p.AuthCodeURL("state-1", "challenge-ignored-by-mock", "http://127.0.0.1/cb")
+	authURL := p.AuthCodeURL("state-1", challenge, "http://127.0.0.1/cb")
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	}}
@@ -62,7 +70,7 @@ func TestGoogleFullCodeDanceAgainstMock(t *testing.T) {
 	require.NotEmpty(t, code)
 	require.Equal(t, "state-1", loc.Query().Get("state"))
 
-	tok, err := p.Exchange(ctx, code, "challenge-ignored-by-mock", "http://127.0.0.1/cb")
+	tok, err := p.Exchange(ctx, code, verifier, "http://127.0.0.1/cb")
 	require.NoError(t, err)
 	require.NotEmpty(t, tok.IDToken, "google adapter must capture the id_token")
 

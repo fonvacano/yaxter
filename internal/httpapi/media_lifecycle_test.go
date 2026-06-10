@@ -100,7 +100,7 @@ func TestMediaEndpointsLifecycle(t *testing.T) {
 	require.NotEmpty(t, ticket.UploadUrl)
 
 	conflict := postJSON(t, h, "/v1/media/"+ticket.MediaId+"/complete", nil,
-		map[string]string{"Authorization": "Bearer " + tok})
+		map[string]string{"Authorization": "Bearer " + tok, "Idempotency-Key": uuid.NewString()})
 	require.Equal(t, http.StatusConflict, conflict.Code, "complete before upload")
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/media/"+ticket.MediaId, nil)
