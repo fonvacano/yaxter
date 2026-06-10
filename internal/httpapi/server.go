@@ -7,18 +7,21 @@ import (
 	"net/http"
 
 	"github.com/fonvacano/yaxter/internal/auth"
+	"github.com/fonvacano/yaxter/internal/tweets"
 	"github.com/fonvacano/yaxter/internal/users"
 )
 
 type Server struct {
-	Auth  *AuthHandlers
-	Users *UsersHandlers
+	Auth   *AuthHandlers
+	Users  *UsersHandlers
+	Tweets *TweetsHandlers
 }
 
-func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string) *Server {
+func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string, tweetsSvc *tweets.Service) *Server {
 	return &Server{
-		Auth:  &AuthHandlers{svc: authSvc},
-		Users: &UsersHandlers{svc: usersSvc, mediaBaseURL: mediaBaseURL},
+		Auth:   &AuthHandlers{svc: authSvc},
+		Users:  &UsersHandlers{svc: usersSvc, mediaBaseURL: mediaBaseURL},
+		Tweets: &TweetsHandlers{svc: tweetsSvc},
 	}
 }
 
@@ -73,13 +76,13 @@ func (s *Server) GetUserTweets(w http.ResponseWriter, r *http.Request, username 
 }
 
 func (s *Server) CreateTweet(w http.ResponseWriter, r *http.Request, params CreateTweetParams) {
-	unimplemented(w) // T1.3
+	s.Tweets.Create(w, r)
 }
 func (s *Server) DeleteTweet(w http.ResponseWriter, r *http.Request, id TweetId) {
-	unimplemented(w) // T1.3
+	s.Tweets.Delete(w, r, id)
 }
 func (s *Server) GetTweet(w http.ResponseWriter, r *http.Request, id TweetId) {
-	unimplemented(w) // T1.3
+	s.Tweets.Get(w, r, id)
 }
 func (s *Server) UnlikeTweet(w http.ResponseWriter, r *http.Request, id TweetId, params UnlikeTweetParams) {
 	unimplemented(w) // T1.3
