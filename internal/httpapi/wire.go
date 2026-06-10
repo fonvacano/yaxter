@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/fonvacano/yaxter/internal/auth"
+	"github.com/fonvacano/yaxter/internal/tweets"
 	"github.com/fonvacano/yaxter/pkg/idem"
 	"github.com/fonvacano/yaxter/pkg/redisx"
 	"github.com/fonvacano/yaxter/pkg/snowflake"
@@ -42,7 +43,8 @@ func NewHandler(d Deps) (http.Handler, error) {
 	}
 	svc := auth.NewService(d.DB, d.IDs, issuer,
 		auth.NewRefreshStore(d.DB, d.IDs, 30*24*time.Hour))
-	srv := NewServer(svc)
+	tweetsSvc := tweets.NewService(d.DB, d.Redis, d.IDs)
+	srv := NewServer(svc, tweetsSvc)
 
 	h := HandlerWithOptions(srv, StdHTTPServerOptions{BaseURL: "/v1"})
 	h = BearerAuth(issuer.Verify)(h)
