@@ -66,12 +66,14 @@ func main() {
 		logger.Fatal().Err(err).Msg("jwt seed")
 	}
 	apiHandler, err := httpapi.NewHandler(httpapi.Deps{
-		DB:            pool,
-		Redis:         redisx.NewClient(cfg.RedisAddr),
-		IDs:           gen,
-		JWTKid:        cfg.AuthJWTKid,
-		JWTSeed:       seed,
-		AuthRateLimit: cfg.AuthRateLimit,
+		DB:                 pool,
+		Redis:              redisx.NewClient(cfg.RedisAddr),
+		IDs:                gen,
+		JWTKid:             cfg.AuthJWTKid,
+		JWTSeed:            seed,
+		AuthRateLimit:      cfg.AuthRateLimit,
+		CelebrityThreshold: cfg.CelebrityThreshold,
+		MediaBaseURL:       cfg.MediaBaseURL,
 	})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("handler wiring")

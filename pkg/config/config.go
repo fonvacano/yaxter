@@ -23,7 +23,9 @@ type Config struct {
 	RelayBatchSize    int           `env:"RELAY_BATCH_SIZE" envDefault:"500"`
 	AuthJWTKid        string        `env:"AUTH_JWT_KID" envDefault:"dev-1"`
 	AuthJWTSeedB64    string        `env:"AUTH_JWT_SEED_B64"`
-	AuthRateLimit     int           `env:"AUTH_RATE_LIMIT" envDefault:"20"`
+	AuthRateLimit      int    `env:"AUTH_RATE_LIMIT" envDefault:"20"`
+	CelebrityThreshold int    `env:"CELEBRITY_THRESHOLD" envDefault:"50"`
+	MediaBaseURL       string `env:"MEDIA_BASE_URL" envDefault:"http://localhost:9000/media"`
 }
 
 func Load() (Config, error) {
