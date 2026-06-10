@@ -18,6 +18,7 @@ CREATE INDEX outbox_unpublished_idx ON outbox (id) WHERE published_at IS NULL;
 -- CREATE TABLE IF NOT EXISTS in pkg/snowflake/lease.go (T0.1).
 CREATE TABLE IF NOT EXISTS node_ids (
     node_id      INT PRIMARY KEY,
-    leased_by    TEXT NOT NULL,
-    heartbeat_at TIMESTAMPTZ NOT NULL
+    leased_by    TEXT        NOT NULL,
+    heartbeat_at TIMESTAMPTZ NOT NULL,
+    expires_at   TIMESTAMPTZ NOT NULL
 );
