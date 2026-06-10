@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package yaxter.events.media.v1;
+
+import "yaxter/events/common/v1/envelope.proto";
+
+option go_package = "github.com/fonvacano/yaxter/gen/yaxter/events/media/v1;mediav1";
+
+message MediaUploaded {
+  int64 media_id = 1;
+  int64 owner_id = 2;
+  string content_type = 3;
+  int64 size_bytes = 4;
+}
+
+message MediaEvent {
+  yaxter.events.common.v1.Envelope envelope = 1;
+  oneof payload {
+    MediaUploaded uploaded = 2;
+  }
+}
