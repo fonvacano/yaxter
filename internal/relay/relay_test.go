@@ -11,6 +11,8 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -154,4 +156,53 @@ func TestCycleDrainsBacklogLargerThanBatch(t *testing.T) {
 	r := New(pool, pub, cfg, NewMetrics(nil), zerolog.Nop())
 	require.NoError(t, r.cycle(ctx))
 	require.Len(t, pub.published(), 7, "one cycle drains the whole backlog")
+}
+
+func TestDeleteAfterGraceAndMetrics(t *testing.T) {
+	pool := migratedPool(t)
+	ctx := context.Background()
+
+	// One row published long ago (eligible for delete), one fresh published,
+	// one unpublished and old (drives the lag gauge).
+	_, err := pool.Exec(ctx, `
+		INSERT INTO outbox (id, topic, key, payload, created_at, published_at) VALUES
+		(1, 't', 'k', '\x01', now() - interval '10 minutes', now() - interval '9 minutes'),
+		(2, 't', 'k', '\x01', now(),                         now()),
+		(3, 't', 'k', '\x01', now() - interval '30 seconds', NULL)`)
+	require.NoError(t, err)
+
+	pub := &fakePublisher{}
+	cfg := DefaultConfig()
+	cfg.DeleteGrace = time.Minute
+	r := New(pool, pub, cfg, NewMetrics(nil), zerolog.Nop())
+	require.NoError(t, r.cycle(ctx)) // publishes row 3, deletes row 1, keeps row 2
+
+	var remaining []int64
+	rows, err := pool.Query(ctx, `SELECT id FROM outbox ORDER BY id`)
+	require.NoError(t, err)
+	for rows.Next() {
+		var id int64
+		require.NoError(t, rows.Scan(&id))
+		remaining = append(remaining, id)
+	}
+	rows.Close()
+	require.Equal(t, []int64{2, 3}, remaining,
+		"old published row deleted; fresh published and just-published kept")
+
+	require.Equal(t, float64(0), testGaugeValue(t, r.m.PendingRows))
+	require.Equal(t, float64(1), testCounterValue(t, r.m.Published))
+}
+
+func testGaugeValue(t *testing.T, g prometheus.Gauge) float64 {
+	t.Helper()
+	var m dto.Metric
+	require.NoError(t, g.Write(&m))
+	return m.GetGauge().GetValue()
+}
+
+func testCounterValue(t *testing.T, c prometheus.Counter) float64 {
+	t.Helper()
+	var m dto.Metric
+	require.NoError(t, c.Write(&m))
+	return m.GetCounter().GetValue()
 }
