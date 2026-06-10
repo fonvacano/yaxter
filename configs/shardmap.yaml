@@ -1,0 +1,6 @@
+# Demo shard map: 256 logical shards on one physical cluster.
+# Production remaps groups of logicals to new clusters here — no code change.
+physical:
+  - name: demo
+    dsn: postgres://yaxter:yaxter@localhost:5432/yaxter?sslmode=disable
+    logicals: "0-255"
