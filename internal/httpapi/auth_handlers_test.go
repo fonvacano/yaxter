@@ -21,9 +21,9 @@ func TestRegisterRejectsMalformedBody(t *testing.T) {
 func TestRegisterRejectsInvalidFields(t *testing.T) {
 	h := &AuthHandlers{svc: nil}
 	for _, body := range []string{
-		`{"username":"x","email":"a@b.c","password":"longenough1"}`,        // username too short
+		`{"username":"x","email":"a@b.c","password":"longenough1"}`,         // username too short
 		`{"username":"valid_name","email":"nope","password":"longenough1"}`, // bad email
-		`{"username":"valid_name","email":"a@b.c","password":"short"}`,     // short password
+		`{"username":"valid_name","email":"a@b.c","password":"short"}`,      // short password
 	} {
 		req := httptest.NewRequest(http.MethodPost, "/v1/auth/register",
 			strings.NewReader(body))

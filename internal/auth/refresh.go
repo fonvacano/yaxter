@@ -86,10 +86,22 @@ func (s *RefreshStore) Rotate(ctx context.Context, token string) (int64, string,
 		return 0, "", err
 	}
 	if revokedAt != nil {
-		if err := s.revokeFamily(ctx, familyID); err != nil {
+		// A successor in the family means this token was directly rotated and
+		// is now being replayed — genuine theft signal. Tokens revoked as
+		// collateral by a prior revokeFamily call have no successor.
+		var hasSuccessor bool
+		if err := s.pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM refresh_tokens WHERE family_id = $1 AND id > $2)`,
+			familyID, id).Scan(&hasSuccessor); err != nil {
 			return 0, "", err
 		}
-		return 0, "", ErrReused
+		if hasSuccessor {
+			if err := s.revokeFamily(ctx, familyID); err != nil {
+				return 0, "", err
+			}
+			return 0, "", ErrReused
+		}
+		return 0, "", ErrInvalidRefresh
 	}
 	if time.Now().After(expiresAt) {
 		return 0, "", ErrInvalidRefresh
