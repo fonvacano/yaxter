@@ -54,7 +54,11 @@ func main() {
 			go runRelay(ctx, logger, cfg)
 			continue
 		}
-		go runRole(ctx, logger, role)
+		if fn, ok := roleRunners[role]; ok {
+			go fn(ctx, logger, cfg)
+		} else {
+			go runRole(ctx, logger, role)
+		}
 	}
 
 	mux := http.NewServeMux()

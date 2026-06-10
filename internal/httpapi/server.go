@@ -10,7 +10,8 @@ import (
 )
 
 type Server struct {
-	Auth *AuthHandlers
+	Auth   *AuthHandlers
+	Tweets *TweetsHandlers
 }
 
 func NewServer(authSvc *auth.Service) *Server {
@@ -77,10 +78,18 @@ func (s *Server) GetTweet(w http.ResponseWriter, r *http.Request, id TweetId) {
 	unimplemented(w) // T1.3
 }
 func (s *Server) UnlikeTweet(w http.ResponseWriter, r *http.Request, id TweetId, params UnlikeTweetParams) {
-	unimplemented(w) // T1.3
+	if s.Tweets == nil {
+		unimplemented(w)
+		return
+	}
+	s.Tweets.setLike(w, r, id, false)
 }
 func (s *Server) LikeTweet(w http.ResponseWriter, r *http.Request, id TweetId, params LikeTweetParams) {
-	unimplemented(w) // T1.3
+	if s.Tweets == nil {
+		unimplemented(w)
+		return
+	}
+	s.Tweets.setLike(w, r, id, true)
 }
 
 func (s *Server) GetHomeTimeline(w http.ResponseWriter, r *http.Request, params GetHomeTimelineParams) {
