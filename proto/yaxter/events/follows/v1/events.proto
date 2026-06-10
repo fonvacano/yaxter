@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package yaxter.events.follows.v1;
+
+import "yaxter/events/common/v1/envelope.proto";
+
+option go_package = "github.com/fonvacano/yaxter/gen/yaxter/events/follows/v1;followsv1";
+
+message FollowChanged {
+  int64 follower_id = 1;
+  int64 followee_id = 2;
+  bool following = 3; // true = follow, false = unfollow
+}
+
+message FollowEvent {
+  yaxter.events.common.v1.Envelope envelope = 1;
+  oneof payload {
+    FollowChanged follow_changed = 2;
+  }
+}

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package yaxter.events.engagements.v1;
+
+import "yaxter/events/common/v1/envelope.proto";
+
+option go_package = "github.com/fonvacano/yaxter/gen/yaxter/events/engagements/v1;engagementsv1";
+
+message TweetLiked {
+  int64 tweet_id = 1;
+  int64 user_id = 2;
+  int64 author_id = 3; // notification recipient
+}
+
+message TweetUnliked {
+  int64 tweet_id = 1;
+  int64 user_id = 2;
+  int64 author_id = 3;
+}
+
+message TweetRetweeted {
+  int64 tweet_id = 1;   // the original tweet (partition key)
+  int64 retweet_id = 2; // the new tweet row with retweet_of_id set
+  int64 user_id = 3;
+  int64 author_id = 4;
+}
+
+message TweetUnretweeted {
+  int64 tweet_id = 1;
+  int64 retweet_id = 2;
+  int64 user_id = 3;
+  int64 author_id = 4;
+}
+
+message EngagementEvent {
+  yaxter.events.common.v1.Envelope envelope = 1;
+  oneof payload {
+    TweetLiked liked = 2;
+    TweetUnliked unliked = 3;
+    TweetRetweeted retweeted = 4;
+    TweetUnretweeted unretweeted = 5;
+  }
+}

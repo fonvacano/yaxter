@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package yaxter.events.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/fonvacano/yaxter/gen/yaxter/events/common/v1;commonv1";
+
+// Envelope is carried by every event. Consumers dedupe on event_id
+// (at-least-once delivery, ARCHITECTURE.md §2.4); traceparent propagates
+// the W3C trace context across the outbox -> Kafka hop.
+message Envelope {
+  int64 event_id = 1;
+  google.protobuf.Timestamp occurred_at = 2;
+  string traceparent = 3;
+  string producer = 4;
+}
