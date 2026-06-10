@@ -1,6 +1,6 @@
 GO ?= go
 
-.PHONY: lint test test-integration build clean
+.PHONY: lint test test-integration build clean lint-spec
 
 lint:
 	golangci-lint run ./...
@@ -17,3 +17,6 @@ build:
 
 clean:
 	rm -rf bin
+
+lint-spec:
+	npx -y @stoplight/spectral-cli lint --fail-severity=error api/openapi.yaml

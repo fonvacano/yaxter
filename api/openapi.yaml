@@ -1,0 +1,133 @@
+openapi: 3.0.3
+info:
+  title: Yaxter API
+  version: 0.1.0
+  description: |
+    Twitter-like demo API (ARCHITECTURE.md §1.2). This file is the source of
+    truth: Go server stubs, the Go client (seed/k6), and the SPA client
+    (orval, T1.7) are generated from it. All IDs are 64-bit snowflakes
+    serialized as decimal strings.
+tags:
+  - name: auth
+  - name: users
+  - name: tweets
+  - name: timeline
+  - name: notifications
+  - name: media
+servers:
+  - url: /v1
+security:
+  - bearerAuth: []
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID dedupe key; 24h window (ARCHITECTURE.md §7).
+      schema:
+        type: string
+        format: uuid
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor from the previous page's next_cursor.
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Username:
+      name: username
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_]{3,30}$'
+    TweetId:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+    MediaId:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+    Provider:
+      name: provider
+      in: path
+      required: true
+      description: Enabled set is config-driven; discover via /auth/providers.
+      schema:
+        type: string
+        enum: [yandex, google]
+  schemas:
+    Id:
+      type: string
+      pattern: '^[0-9]+$'
+      description: Snowflake ID as a decimal string (int64-safe in JSON).
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Machine-readable code, e.g. validation_failed.
+        message:
+          type: string
+  responses:
+    BadRequest:
+      description: Malformed request or validation failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing/invalid/expired credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Authenticated but not allowed (ownership checks).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource does not exist (uniform — no enumeration leaks).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: State conflict (duplicate, in-flight idempotent request).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Rate limited.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the window frees up.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
