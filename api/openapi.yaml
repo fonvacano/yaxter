@@ -207,6 +207,230 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /users/me:
+    get:
+      tags: [users]
+      summary: Current user's profile (read-your-writes)
+      operationId: getMe
+      responses:
+        '200':
+          description: Profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [users]
+      summary: Update profile
+      operationId: updateMe
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile (cache deleted on write).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/{username}:
+    get:
+      tags: [users]
+      summary: Public profile
+      operationId: getUser
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Username'
+      responses:
+        '200':
+          description: Profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{username}/follow:
+    post:
+      tags: [users]
+      summary: Follow a user (idempotent; writes both edge tables + event in one tx)
+      operationId: followUser
+      parameters:
+        - $ref: '#/components/parameters/Username'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Following (already-following is a no-op 204).
+        '400':
+          description: Self-follow rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      tags: [users]
+      summary: Unfollow a user (idempotent)
+      operationId: unfollowUser
+      parameters:
+        - $ref: '#/components/parameters/Username'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Not following anymore.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{username}/followers:
+    get:
+      tags: [users]
+      summary: Who follows this user
+      operationId: listFollowers
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Username'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of followers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{username}/following:
+    get:
+      tags: [users]
+      summary: Who this user follows
+      operationId: listFollowing
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Username'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of followees.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tweets:
+    post:
+      tags: [tweets]
+      summary: Create a tweet or retweet (retweet_of_id set)
+      operationId: createTweet
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTweetRequest'
+      responses:
+        '201':
+          description: Acked once the row + outbox event are committed (§2.4). Duplicate Idempotency-Key replays this exact response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tweet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: retweet_of_id or a media_id does not exist / is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /tweets/{id}:
+    get:
+      tags: [tweets]
+      summary: Fetch one tweet
+      operationId: getTweet
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/TweetId'
+      responses:
+        '200':
+          description: The tweet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tweet'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [tweets]
+      summary: Delete own tweet
+      operationId: deleteTweet
+      parameters:
+        - $ref: '#/components/parameters/TweetId'
+      responses:
+        '204':
+          description: Deleted; TweetDeleted event emitted via outbox.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tweets/{id}/like:
+    post:
+      tags: [tweets]
+      summary: Like (idempotent — PK ON CONFLICT DO NOTHING)
+      operationId: likeTweet
+      parameters:
+        - $ref: '#/components/parameters/TweetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Liked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      tags: [tweets]
+      summary: Unlike (idempotent)
+      operationId: unlikeTweet
+      parameters:
+        - $ref: '#/components/parameters/TweetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Not liked anymore.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -401,6 +625,100 @@ components:
         auth_url:
           type: string
           description: Provider URL to complete linking in the browser.
+    UpdateProfileRequest:
+      type: object
+      properties:
+        bio:
+          type: string
+          maxLength: 160
+        avatar_media_id:
+          $ref: '#/components/schemas/Id'
+    MediaRef:
+      type: object
+      required: [id, urls]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        urls:
+          type: object
+          required: [thumb, feed, orig]
+          description: Fixed scheme https://media.{domain}/{variant}/{media_id}.webp (§2.5).
+          properties:
+            thumb:
+              type: string
+            feed:
+              type: string
+            orig:
+              type: string
+    CreateTweetRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          maxLength: 280
+          description: May be empty only when retweet_of_id is set.
+        media_ids:
+          type: array
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/Id'
+          description: Each must be in `ready` state.
+        retweet_of_id:
+          $ref: '#/components/schemas/Id'
+    Tweet:
+      type: object
+      required: [id, author, text, likes_count, retweets_count, created_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        text:
+          type: string
+        retweet_of:
+          allOf:
+            - $ref: '#/components/schemas/Tweet'
+          nullable: true
+          description: One level deep — retweets of retweets are flattened to the original.
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaRef'
+        likes_count:
+          type: integer
+          description: Eventual (±seconds), from the counter pipeline (§2.7).
+        retweets_count:
+          type: integer
+        liked_by_me:
+          type: boolean
+          description: Present only on authenticated reads.
+        created_at:
+          type: string
+          format: date-time
+    TweetPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tweet'
+        next_cursor:
+          type: string
+          nullable: true
+          description: Absent/null on the last page.
+    UserPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        next_cursor:
+          type: string
+          nullable: true
   responses:
     BadRequest:
       description: Malformed request or validation failure.
