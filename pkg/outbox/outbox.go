@@ -7,17 +7,22 @@ package outbox
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Message is one event bound for Kafka. ID is a snowflake and defines
-// publish order; Key becomes the Kafka record key (partition affinity).
+// publish order; Key becomes the Kafka record key (partition affinity);
+// Traceparent (optional) is copied to the Kafka `traceparent` header by
+// the relay so one trace spans write -> fan-out -> read.
 type Message struct {
-	ID      int64
-	Topic   string
-	Key     string
-	Payload []byte // serialized protobuf event wrapper
+	ID          int64
+	Topic       string
+	Key         string
+	Payload     []byte // serialized protobuf event wrapper
+	Traceparent string
 }
 
 func validate(m Message) error {
@@ -39,7 +44,18 @@ func Insert(ctx context.Context, tx pgx.Tx, msg Message) error {
 		return err
 	}
 	_, err := tx.Exec(ctx,
-		`INSERT INTO outbox (id, topic, key, payload) VALUES ($1, $2, $3, $4)`,
-		msg.ID, msg.Topic, msg.Key, msg.Payload)
+		`INSERT INTO outbox (id, topic, key, payload, traceparent)
+		 VALUES ($1, $2, $3, $4, NULLIF($5, ''))`,
+		msg.ID, msg.Topic, msg.Key, msg.Payload, msg.Traceparent)
 	return err
+}
+
+// TraceparentFromContext renders the active span context as a W3C
+// traceparent header value, or "" when no valid span is present.
+func TraceparentFromContext(ctx context.Context) string {
+	sc := trace.SpanContextFromContext(ctx)
+	if !sc.IsValid() {
+		return ""
+	}
+	return fmt.Sprintf("00-%s-%s-%s", sc.TraceID(), sc.SpanID(), sc.TraceFlags())
 }

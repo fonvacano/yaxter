@@ -9,6 +9,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/stretchr/testify/require"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"go.opentelemetry.io/otel/trace"
 
 	pgxkit "github.com/fonvacano/yaxter/pkg/pgx"
 )
@@ -77,6 +78,41 @@ func TestInsertSharesTheCallersTransaction(t *testing.T) {
 	require.Equal(t, "tweets.v1", topic)
 	require.Equal(t, "2", key)
 	require.Nil(t, published, "new rows are unpublished")
+}
+
+func TestInsertStoresTraceparent(t *testing.T) {
+	ctx, _, dsn := setup(t)
+	pool, err := pgxkit.NewPool(ctx, dsn)
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	require.NoError(t, Insert(ctx, tx, Message{
+		ID: 2002, Topic: "tweets.v1", Key: "9", Payload: []byte{0x1},
+		Traceparent: "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+	}))
+	require.NoError(t, tx.Commit(ctx))
+
+	var tp *string
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT traceparent FROM outbox WHERE id = 2002`).Scan(&tp))
+	require.NotNil(t, tp)
+	require.Equal(t, "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01", *tp)
+}
+
+func TestTraceparentFromContext(t *testing.T) {
+	require.Empty(t, TraceparentFromContext(context.Background()))
+
+	traceID, _ := trace.TraceIDFromHex("0123456789abcdef0123456789abcdef")
+	spanID, _ := trace.SpanIDFromHex("0123456789abcdef")
+	sc := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID: traceID, SpanID: spanID, TraceFlags: trace.FlagsSampled,
+	})
+	ctx := trace.ContextWithSpanContext(context.Background(), sc)
+	require.Equal(t,
+		"00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+		TraceparentFromContext(ctx))
 }
 
 func TestInsertValidates(t *testing.T) {
