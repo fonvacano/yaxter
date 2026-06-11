@@ -1,0 +1,12 @@
+FROM golang:1.25.0 AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/api ./cmd/api && \
+    CGO_ENABLED=0 GOOS=linux go build -o /app/worker ./cmd/worker
+
+FROM gcr.io/distroless/static:nonroot
+COPY --from=builder /app/api /app/api
+COPY --from=builder /app/worker /app/worker
+EXPOSE 8080
