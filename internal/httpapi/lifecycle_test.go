@@ -164,9 +164,40 @@ func TestAuthRateLimitOverHTTP(t *testing.T) {
 
 func TestUnimplementedRoutesReturn501(t *testing.T) {
 	h := liveHandler(t, 100)
-	// /v1/timeline is T2.4 — still unimplemented
-	req := httptest.NewRequest(http.MethodGet, "/v1/timeline", nil)
+	// /v1/media is T1.5 — still unimplemented
+	req := httptest.NewRequest(http.MethodPost, "/v1/media", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusNotImplemented, rr.Code)
+}
+
+func getJSON(t *testing.T, h http.Handler, path string, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	return rr
+}
+
+func registerAndLogin(t *testing.T, h http.Handler, username string) string {
+	t.Helper()
+	postJSON(t, h, "/v1/auth/register", map[string]any{
+		"username": username,
+		"email":    username + "@test.io",
+		"password": "password123",
+	}, nil)
+	rr := postJSON(t, h, "/v1/auth/login", map[string]any{
+		"login":    username + "@test.io",
+		"password": "password123",
+	}, nil)
+	var resp struct {
+		Tokens struct {
+			AccessToken string `json:"access_token"`
+		} `json:"tokens"`
+	}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	return resp.Tokens.AccessToken
 }
