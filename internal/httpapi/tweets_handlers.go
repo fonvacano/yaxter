@@ -122,9 +122,15 @@ func (h *TweetsHandlers) Delete(w http.ResponseWriter, r *http.Request, id strin
 
 // hydrate converts a HydratedTweet to the generated API Tweet type.
 func (h *TweetsHandlers) hydrate(ht tweets.HydratedTweet) Tweet {
+	return tweetToAPI(ht, h.mediaBaseURL)
+}
+
+// tweetToAPI renders a hydrated tweet as the generated API Tweet type. Shared
+// by tweet and timeline endpoints so both render identically.
+func tweetToAPI(ht tweets.HydratedTweet, mediaBaseURL string) Tweet {
 	var avatarURL *string
-	if ht.AuthorAvatarKey != nil && h.mediaBaseURL != "" {
-		u := h.mediaBaseURL + "/orig/" + *ht.AuthorAvatarKey
+	if ht.AuthorAvatarKey != nil && mediaBaseURL != "" {
+		u := mediaBaseURL + "/orig/" + *ht.AuthorAvatarKey
 		avatarURL = &u
 	}
 
@@ -133,7 +139,7 @@ func (h *TweetsHandlers) hydrate(ht tweets.HydratedTweet) Tweet {
 		refs := make([]MediaRef, len(ht.MediaIDs))
 		for i, mid := range ht.MediaIDs {
 			sid := formatID(mid)
-			base := h.mediaBaseURL + "/orig/" + sid
+			base := mediaBaseURL + "/orig/" + sid
 			refs[i] = MediaRef{
 				Id: sid,
 				Urls: struct {
@@ -141,9 +147,9 @@ func (h *TweetsHandlers) hydrate(ht tweets.HydratedTweet) Tweet {
 					Orig  string `json:"orig"`
 					Thumb string `json:"thumb"`
 				}{
-					Feed:  h.mediaBaseURL + "/feed/" + sid,
+					Feed:  mediaBaseURL + "/feed/" + sid,
 					Orig:  base,
-					Thumb: h.mediaBaseURL + "/thumb/" + sid,
+					Thumb: mediaBaseURL + "/thumb/" + sid,
 				},
 			}
 		}
