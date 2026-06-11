@@ -14,8 +14,17 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 export async function customFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  // Mutating endpoints require an Idempotency-Key (UUID). Generate one per
+  // logical call and reuse it across the 401-refresh retry below, so the retry
+  // is deduped rather than treated as a second write.
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const baseHeaders = new Headers(init?.headers);
+  if (method !== 'GET' && method !== 'HEAD' && !baseHeaders.has('Idempotency-Key')) {
+    baseHeaders.set('Idempotency-Key', crypto.randomUUID());
+  }
+
   const doFetch = () => {
-    const headers = new Headers(init?.headers);
+    const headers = new Headers(baseHeaders);
     const token = tokenStore.get();
     if (token) headers.set('Authorization', `Bearer ${token}`);
     return fetch(url, { ...init, headers, credentials: 'include' });

@@ -38,17 +38,27 @@ export function Composer() {
   }
 
   return (
-    <form onSubmit={onSubmit} aria-label="compose">
-      <label>
-        What&apos;s happening?
-        <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={MAX + 20} />
-      </label>
-      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPick} aria-label="attach image" />
-      <span aria-label="char count">{MAX - text.length}</span>
-      {error && <p role="alert">{error}</p>}
-      <button type="submit" disabled={!canPost}>
-        {uploading ? 'Uploading…' : create.isPending ? 'Posting…' : 'Post'}
-      </button>
+    <form onSubmit={onSubmit} className="composer" aria-label="compose">
+      <textarea
+        className="composer-input"
+        aria-label="What's happening?"
+        placeholder="What's happening?"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        maxLength={MAX + 20}
+      />
+      {file && <span className="charcount">📎 {file.name}</span>}
+      {error && <p className="error" role="alert">{error}</p>}
+      <div className="composer-bar">
+        <label className="attach" title="Attach image">
+          🖼️
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPick} aria-label="attach image" />
+        </label>
+        <span className={'charcount' + (overLimit ? ' over' : '')} aria-label="char count">{MAX - text.length}</span>
+        <button type="submit" className="btn-primary" disabled={!canPost}>
+          {uploading ? 'Uploading…' : create.isPending ? 'Posting…' : 'Post'}
+        </button>
+      </div>
     </form>
   );
 }

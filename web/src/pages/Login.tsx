@@ -29,7 +29,7 @@ export default function Login() {
   }
 
   return (
-    <section>
+    <section className="auth-card">
       <h1>Log in</h1>
       <form onSubmit={onSubmit} aria-label="login form">
         <label>
@@ -40,8 +40,8 @@ export default function Login() {
           Password
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
         </label>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={pending}>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button type="submit" className="btn-primary" disabled={pending}>
           {pending ? 'Logging in…' : 'Log in'}
         </button>
       </form>

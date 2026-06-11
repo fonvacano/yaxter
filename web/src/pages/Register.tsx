@@ -32,7 +32,7 @@ export default function Register() {
   }
 
   return (
-    <section>
+    <section className="auth-card">
       <h1>Create account</h1>
       <form onSubmit={onSubmit} aria-label="register form">
         <label>
@@ -47,8 +47,8 @@ export default function Register() {
           Password
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
         </label>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={pending}>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button type="submit" className="btn-primary" disabled={pending}>
           {pending ? 'Creating…' : 'Register'}
         </button>
       </form>

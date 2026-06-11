@@ -22,13 +22,13 @@ export default function Profile() {
     <Async isLoading={user.isLoading} error={user.error}>
       {user.data && (
         <>
-          <header>
+          <header className="profile-head">
             <h1>{user.data.username}</h1>
-            <p>
-              <span>{user.data.followers_count} followers</span> ·{' '}
-              <span>{user.data.following_count} following</span>
+            <p className="profile-stats">
+              <b>{user.data.followers_count}</b> followers ·{' '}
+              <b>{user.data.following_count}</b> following
             </p>
-            <button type="button" onClick={toggle} disabled={follow.isPending} aria-pressed={following}>
+            <button type="button" className={following ? 'btn-ghost' : 'btn-primary'} onClick={toggle} disabled={follow.isPending} aria-pressed={following}>
               {following ? 'Unfollow' : 'Follow'}
             </button>
           </header>
@@ -38,12 +38,12 @@ export default function Profile() {
             empty={!tl.isLoading && tl.tweets.length === 0}
             emptyMessage="No tweets yet"
           >
-            <div aria-label="profile timeline">
+            <div className="feed" aria-label="profile timeline">
               {tl.tweets.map((t) => (
                 <TweetCard key={String(t.id)} tweet={t} />
               ))}
               {tl.hasNextPage && (
-                <button type="button" onClick={() => tl.fetchNextPage()} disabled={tl.isFetchingNextPage}>
+                <button type="button" className="btn-load" onClick={() => tl.fetchNextPage()} disabled={tl.isFetchingNextPage}>
                   Load more
                 </button>
               )}

@@ -23,11 +23,12 @@ export default function Notifications() {
 
   return (
     <section>
-      <header>
+      <header className="page-head">
         <h1>Notifications</h1>
         {items.length > 0 && (
           <button
             type="button"
+            className="btn-ghost spacer"
             onClick={() => mark.mutate({ up_to_id: String(items[0].id) })}
             disabled={mark.isPending}
           >
@@ -36,7 +37,7 @@ export default function Notifications() {
         )}
       </header>
       <Async isLoading={isLoading} error={error} empty={!isLoading && items.length === 0} emptyMessage="No notifications">
-        <ul aria-label="notifications list">
+        <ul className="notif-list" aria-label="notifications list">
           {items.map((n) => (
             <li key={String(n.id)} aria-current={n.read ? undefined : 'true'}>
               {n.subject_id ? <Link to="/">{formatNotif(n)}</Link> : formatNotif(n)}
@@ -44,7 +45,7 @@ export default function Notifications() {
           ))}
         </ul>
         {hasNextPage && (
-          <button type="button" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+          <button type="button" className="btn-load" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
             Load more
           </button>
         )}
