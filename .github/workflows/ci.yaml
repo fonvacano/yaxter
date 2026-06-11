@@ -176,3 +176,36 @@ jobs:
         run: terraform -chdir=infra init -backend=false
       - name: Validate
         run: terraform -chdir=infra validate
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, image, contracts, web]
+    if: github.ref == 'refs/heads/main' && vars.YC_DEPLOY_ENABLED == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Install YC CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -a
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+      - name: Authenticate to YC
+        run: |
+          echo "${{ secrets.YC_SA_KEY_JSON }}" > /tmp/sa-key.json
+          yc config set service-account-key /tmp/sa-key.json
+          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+          yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+      - name: Get kubeconfig for demo cluster
+        run: yc managed-kubernetes cluster get-credentials ${{ secrets.YC_K8S_CLUSTER_ID }} --external --kubeconfig /tmp/kubeconfig
+      - name: Log in to Container Registry
+        run: |
+          yc container registry configure-docker
+      - name: Deploy to demo cluster
+        run: |
+          helm upgrade --install yaxter deploy/chart \
+            --kubeconfig /tmp/kubeconfig \
+            -f deploy/chart/values-demo.yaml \
+            --set image.tag=${{ github.sha }} \
+            --set image.repository=cr.yandex/${{ secrets.YC_CR_REGISTRY_ID }}/yaxter \
+            --wait --timeout=10m
+      - name: Verify rollout
+        run: kubectl --kubeconfig /tmp/kubeconfig rollout status deployment/yaxter-api --timeout=5m
