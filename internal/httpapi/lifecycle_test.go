@@ -202,4 +202,3 @@ func TestUnimplementedRoutesReturn501(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusNotImplemented, rr.Code)
 }
-
