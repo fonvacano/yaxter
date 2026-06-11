@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"github.com/fonvacano/yaxter/internal/auth"
+	"github.com/fonvacano/yaxter/internal/auth/oauth"
+	"github.com/fonvacano/yaxter/internal/media"
 	"github.com/fonvacano/yaxter/internal/notifications"
 	"github.com/fonvacano/yaxter/internal/timeline"
 	"github.com/fonvacano/yaxter/internal/tweets"
@@ -17,15 +19,19 @@ type Server struct {
 	Auth          *AuthHandlers
 	Users         *UsersHandlers
 	Tweets        *TweetsHandlers
+	Media         *MediaHandlers
+	OAuth         *OAuthHandlers
 	Notifications *NotificationsHandlers
 	Timeline      *TimelineHandlers
 }
 
-func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string, tweetsSvc *tweets.Service, notifSvc *notifications.Service, timelineSvc *timeline.Service) *Server {
+func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string, tweetsSvc *tweets.Service, mediaSvc *media.Service, oauthFlow *oauth.Flow, notifSvc *notifications.Service, timelineSvc *timeline.Service) *Server {
 	return &Server{
 		Auth:          &AuthHandlers{svc: authSvc},
 		Users:         &UsersHandlers{svc: usersSvc, mediaBaseURL: mediaBaseURL},
 		Tweets:        &TweetsHandlers{svc: tweetsSvc, mediaBaseURL: mediaBaseURL},
+		Media:         &MediaHandlers{svc: mediaSvc, mediaBaseURL: mediaBaseURL},
+		OAuth:         &OAuthHandlers{flow: oauthFlow, svc: authSvc},
 		Notifications: &NotificationsHandlers{svc: notifSvc, mediaBaseURL: mediaBaseURL},
 		Timeline:      &TimelineHandlers{svc: timelineSvc, mediaBaseURL: mediaBaseURL},
 	}
@@ -44,18 +50,20 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request)       { s.Auth.L
 
 // ---- 501 until their tasks land ----
 
-func (s *Server) ListAuthProviders(w http.ResponseWriter, r *http.Request) { unimplemented(w) } // T1.6
+func (s *Server) ListAuthProviders(w http.ResponseWriter, r *http.Request) {
+	s.OAuth.ListProviders(w, r)
+}
 func (s *Server) OauthCallback(w http.ResponseWriter, r *http.Request, provider OauthCallbackParamsProvider, params OauthCallbackParams) {
-	unimplemented(w) // T1.6
+	s.OAuth.Callback(w, r, string(provider))
 }
 func (s *Server) OauthUnlink(w http.ResponseWriter, r *http.Request, provider OauthUnlinkParamsProvider) {
-	unimplemented(w) // T1.6
+	s.OAuth.Unlink(w, r, string(provider))
 }
 func (s *Server) OauthLink(w http.ResponseWriter, r *http.Request, provider OauthLinkParamsProvider) {
-	unimplemented(w) // T1.6
+	s.OAuth.Link(w, r, string(provider))
 }
 func (s *Server) OauthStart(w http.ResponseWriter, r *http.Request, provider OauthStartParamsProvider, params OauthStartParams) {
-	unimplemented(w) // T1.6
+	s.OAuth.Start(w, r, string(provider))
 }
 
 func (s *Server) GetMe(w http.ResponseWriter, r *http.Request) { s.Users.GetMe(w, r) }
@@ -110,13 +118,13 @@ func (s *Server) GetHomeTimeline(w http.ResponseWriter, r *http.Request, params 
 }
 
 func (s *Server) CreateMedia(w http.ResponseWriter, r *http.Request, params CreateMediaParams) {
-	unimplemented(w) // T1.5
+	s.Media.Create(w, r)
 }
 func (s *Server) GetMedia(w http.ResponseWriter, r *http.Request, id MediaId) {
-	unimplemented(w) // T1.5
+	s.Media.Get(w, r, string(id))
 }
 func (s *Server) CompleteMedia(w http.ResponseWriter, r *http.Request, id MediaId) {
-	unimplemented(w) // T1.5
+	s.Media.Complete(w, r, string(id))
 }
 
 func (s *Server) ListNotifications(w http.ResponseWriter, r *http.Request, params ListNotificationsParams) {

@@ -17,7 +17,9 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"github.com/fonvacano/yaxter/internal/auth/oauth"
 	"github.com/fonvacano/yaxter/internal/httpapi"
+	"github.com/fonvacano/yaxter/internal/media"
 	"github.com/fonvacano/yaxter/pkg/config"
 	logkit "github.com/fonvacano/yaxter/pkg/log"
 	otelkit "github.com/fonvacano/yaxter/pkg/otel"
@@ -65,6 +67,23 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("jwt seed")
 	}
+	mediaStore, err := media.NewStore(ctx, media.StoreConfig{
+		Endpoint:     cfg.S3Endpoint,
+		Region:       cfg.S3Region,
+		AccessKey:    cfg.S3AccessKeyID,
+		SecretKey:    cfg.S3SecretAccessKey,
+		Bucket:       cfg.S3MediaBucket,
+		UsePathStyle: cfg.S3UsePathStyle,
+	})
+	if err != nil {
+		logger.Fatal().Err(err).Msg("media store init")
+	}
+	if err := mediaStore.EnsureBucket(ctx); err != nil {
+		logger.Warn().Err(err).Msg("media bucket ensure failed - presign may still work")
+	}
+
+	oauthProviders := buildOAuthProviders(ctx, cfg, logger)
+
 	apiHandler, err := httpapi.NewHandler(httpapi.Deps{
 		DB:                 pool,
 		Redis:              redisx.NewClient(cfg.RedisAddr),
@@ -74,6 +93,9 @@ func main() {
 		AuthRateLimit:      cfg.AuthRateLimit,
 		CelebrityThreshold: cfg.CelebrityThreshold,
 		MediaBaseURL:       cfg.MediaBaseURL,
+		MediaStore:         mediaStore,
+		OAuthProviders:     oauthProviders,
+		OAuthRedirectBase:  cfg.OAuthRedirectBase,
 	})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("handler wiring")
@@ -100,6 +122,36 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(shutCtx)
 	_ = shutdownOtel(shutCtx)
+}
+
+// buildOAuthProviders constructs the enabled OAuth provider adapters from
+// config. Providers listed without credentials (or whose discovery fails) are
+// logged and skipped, so the service still boots (config drives enablement).
+func buildOAuthProviders(ctx context.Context, cfg config.Config, logger zerolog.Logger) map[string]oauth.Provider {
+	out := map[string]oauth.Provider{}
+	for _, name := range cfg.OAuthProviders {
+		switch name {
+		case "yandex":
+			if cfg.YandexClientID == "" {
+				logger.Warn().Msg("yandex oauth listed but no credentials - disabled")
+				continue
+			}
+			out["yandex"] = oauth.NewYandex(cfg.YandexClientID, cfg.YandexClientSecret,
+				oauth.YandexEndpoints{AuthURL: cfg.YandexAuthURL, TokenURL: cfg.YandexTokenURL, InfoURL: cfg.YandexInfoURL})
+		case "google":
+			if cfg.GoogleClientID == "" {
+				logger.Warn().Msg("google oauth listed but no credentials - disabled")
+				continue
+			}
+			g, err := oauth.NewGoogle(ctx, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleIssuer)
+			if err != nil {
+				logger.Error().Err(err).Msg("google oidc discovery failed - disabled")
+				continue
+			}
+			out["google"] = g
+		}
+	}
+	return out
 }
 
 func hostnameOr(fallback string) string {

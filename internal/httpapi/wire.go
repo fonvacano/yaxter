@@ -10,6 +10,8 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/fonvacano/yaxter/internal/auth"
+	"github.com/fonvacano/yaxter/internal/auth/oauth"
+	"github.com/fonvacano/yaxter/internal/media"
 	"github.com/fonvacano/yaxter/internal/notifications"
 	"github.com/fonvacano/yaxter/internal/timeline"
 	"github.com/fonvacano/yaxter/internal/tweets"
@@ -28,6 +30,9 @@ type Deps struct {
 	AuthRateLimit      int
 	CelebrityThreshold int
 	MediaBaseURL       string
+	MediaStore         *media.Store
+	OAuthProviders     map[string]oauth.Provider
+	OAuthRedirectBase  string
 }
 
 // idemSkip exempts token-issuance routes from Idempotency-Key (deviation #4
@@ -51,12 +56,14 @@ func NewHandler(d Deps) (http.Handler, error) {
 		auth.NewRefreshStore(d.DB, d.IDs, 30*24*time.Hour))
 	usersSvc := users.NewService(d.DB, d.Redis, d.IDs, d.CelebrityThreshold)
 	tweetsSvc := tweets.NewService(d.DB, d.Redis, d.IDs)
+	mediaSvc := media.NewService(d.DB, d.MediaStore, d.IDs)
+	oauthFlow := oauth.NewFlow(d.DB, d.Redis, d.IDs, d.OAuthProviders, d.OAuthRedirectBase)
 	notifSvc := notifications.NewService(d.DB)
 	timelineSvc, err := timeline.NewService(d.DB, d.Redis, tweetsSvc, d.CelebrityThreshold)
 	if err != nil {
 		return nil, fmt.Errorf("timeline service: %w", err)
 	}
-	srv := NewServer(svc, usersSvc, d.MediaBaseURL, tweetsSvc, notifSvc, timelineSvc)
+	srv := NewServer(svc, usersSvc, d.MediaBaseURL, tweetsSvc, mediaSvc, oauthFlow, notifSvc, timelineSvc)
 
 	h := HandlerWithOptions(srv, StdHTTPServerOptions{BaseURL: "/v1"})
 	h = BearerAuth(issuer.Verify)(h)
