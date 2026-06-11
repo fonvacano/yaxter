@@ -1,0 +1,22 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "yaxter.fullname" . }}-api
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  selector:
+    matchLabels:
+      {{- include "yaxter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+{{- end }}

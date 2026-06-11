@@ -1,0 +1,22 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "yaxter.fullname" . }}-workers
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  selector:
+    matchLabels:
+      {{- include "yaxter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+{{- end }}
