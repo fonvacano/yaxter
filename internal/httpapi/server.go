@@ -7,21 +7,24 @@ import (
 	"net/http"
 
 	"github.com/fonvacano/yaxter/internal/auth"
+	"github.com/fonvacano/yaxter/internal/notifications"
 	"github.com/fonvacano/yaxter/internal/tweets"
 	"github.com/fonvacano/yaxter/internal/users"
 )
 
 type Server struct {
-	Auth   *AuthHandlers
-	Users  *UsersHandlers
-	Tweets *TweetsHandlers
+	Auth          *AuthHandlers
+	Users         *UsersHandlers
+	Tweets        *TweetsHandlers
+	Notifications *NotificationsHandlers
 }
 
-func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string, tweetsSvc *tweets.Service) *Server {
+func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string, tweetsSvc *tweets.Service, notifSvc *notifications.Service) *Server {
 	return &Server{
-		Auth:   &AuthHandlers{svc: authSvc},
-		Users:  &UsersHandlers{svc: usersSvc, mediaBaseURL: mediaBaseURL},
-		Tweets: &TweetsHandlers{svc: tweetsSvc},
+		Auth:          &AuthHandlers{svc: authSvc},
+		Users:         &UsersHandlers{svc: usersSvc, mediaBaseURL: mediaBaseURL},
+		Tweets:        &TweetsHandlers{svc: tweetsSvc, mediaBaseURL: mediaBaseURL},
+		Notifications: &NotificationsHandlers{svc: notifSvc, mediaBaseURL: mediaBaseURL},
 	}
 }
 
@@ -114,9 +117,11 @@ func (s *Server) CompleteMedia(w http.ResponseWriter, r *http.Request, id MediaI
 }
 
 func (s *Server) ListNotifications(w http.ResponseWriter, r *http.Request, params ListNotificationsParams) {
-	unimplemented(w) // T2.3
+	s.Notifications.List(w, r, params)
 }
 func (s *Server) MarkNotificationsRead(w http.ResponseWriter, r *http.Request, params MarkNotificationsReadParams) {
-	unimplemented(w) // T2.3
+	s.Notifications.MarkRead(w, r)
 }
-func (s *Server) GetUnreadCount(w http.ResponseWriter, r *http.Request) { unimplemented(w) } // T2.3
+func (s *Server) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
+	s.Notifications.UnreadCount(w, r)
+}

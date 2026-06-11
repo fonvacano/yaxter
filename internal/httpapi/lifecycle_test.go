@@ -151,6 +151,38 @@ func TestFullTokenLifecycleOverHTTP(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, dead.Code)
 }
 
+func getJSON(t *testing.T, h http.Handler, path string, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, path, nil)
+	require.NoError(t, err)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	return rr
+}
+
+func registerAndLogin(t *testing.T, h http.Handler, username string) string {
+	t.Helper()
+	postJSON(t, h, "/v1/auth/register", map[string]any{
+		"username": username,
+		"email":    username + "@test.io",
+		"password": "password123",
+	}, map[string]string{"Idempotency-Key": username + "-reg-key"})
+	rr := postJSON(t, h, "/v1/auth/login", map[string]any{
+		"login":    username + "@test.io",
+		"password": "password123",
+	}, nil)
+	var resp struct {
+		Tokens struct {
+			AccessToken string `json:"access_token"`
+		} `json:"tokens"`
+	}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	return resp.Tokens.AccessToken
+}
+
 func TestAuthRateLimitOverHTTP(t *testing.T) {
 	h := liveHandler(t, 3)
 	var last *httptest.ResponseRecorder
