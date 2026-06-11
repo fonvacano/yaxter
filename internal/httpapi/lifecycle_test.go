@@ -165,21 +165,24 @@ func getJSON(t *testing.T, h http.Handler, path string, headers map[string]strin
 
 func registerAndLogin(t *testing.T, h http.Handler, username string) string {
 	t.Helper()
-	postJSON(t, h, "/v1/auth/register", map[string]any{
+	reg := postJSON(t, h, "/v1/auth/register", map[string]any{
 		"username": username,
 		"email":    username + "@test.io",
 		"password": "password123",
-	}, map[string]string{"Idempotency-Key": username + "-reg-key"})
+	}, map[string]string{"Idempotency-Key": "a0000000-0000-0000-0000-" + fmt.Sprintf("%012x", len(username))})
+	require.Equal(t, http.StatusCreated, reg.Code, reg.Body.String())
 	rr := postJSON(t, h, "/v1/auth/login", map[string]any{
 		"login":    username,
 		"password": "password123",
 	}, nil)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	var resp struct {
 		Tokens struct {
 			AccessToken string `json:"access_token"`
 		} `json:"tokens"`
 	}
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.NotEmpty(t, resp.Tokens.AccessToken)
 	return resp.Tokens.AccessToken
 }
 
