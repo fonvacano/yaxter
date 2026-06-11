@@ -1,0 +1,98 @@
+{{- if not .Values.rollouts.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "yaxter.fullname" . }}-api
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      {{- include "yaxter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "yaxter.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      annotations:
+        checksum/config: {{ include "yaxter.apiConfigMapName" . | sha256sum }}
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: api
+          image: {{ include "yaxter.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/app/api"]
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "yaxter.apiConfigMapName" . }}
+          env:
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: POSTGRES_DSN
+            - name: AUTH_JWT_SEED_B64
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: AUTH_JWT_SEED_B64
+            - name: AUTH_JWT_KID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: AUTH_JWT_KID
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: OAUTH_CLIENT_SECRET
+                  optional: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "yaxter.apiConfigMapName" . }}
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+data:
+  HTTP_ADDR: {{ .Values.api.config.httpAddr | quote }}
+  CELEBRITY_THRESHOLD: {{ .Values.api.config.celebrityThreshold | quote }}
+  MEDIA_BASE_URL: {{ .Values.api.config.mediaBaseUrl | quote }}
+  KAFKA_BROKERS: {{ .Values.api.config.kafkaBrokers | quote }}
+  REDIS_ADDR: {{ .Values.api.config.redisAddr | quote }}

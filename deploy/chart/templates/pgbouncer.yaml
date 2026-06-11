@@ -1,0 +1,127 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "yaxter.fullname" . }}-pgbouncer-config
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+data:
+  pgbouncer.ini: |
+    [databases]
+    {{ .Values.pgbouncer.pgDatabase }} = host={{ .Values.pgbouncer.pgHost }} port={{ .Values.pgbouncer.pgPort }} dbname={{ .Values.pgbouncer.pgDatabase }}
+
+    [pgbouncer]
+    listen_addr = 0.0.0.0
+    listen_port = 5432
+    auth_type = scram-sha-256
+    auth_file = /etc/pgbouncer/userlist.txt
+    pool_mode = {{ .Values.pgbouncer.poolMode }}
+    max_client_conn = {{ .Values.pgbouncer.maxClientConn }}
+    default_pool_size = {{ .Values.pgbouncer.defaultPoolSize }}
+    server_tls_sslmode = require
+    ignore_startup_parameters = extra_float_digits
+    log_connections = 0
+    log_disconnections = 0
+    log_pooler_errors = 1
+    stats_period = 60
+    admin_users = {{ .Values.pgbouncer.pgUser }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "yaxter.pgbouncerServiceName" . }}
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+spec:
+  replicas: {{ .Values.pgbouncer.replicas }}
+  selector:
+    matchLabels:
+      {{- include "yaxter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pgbouncer
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "yaxter.labels" . | nindent 8 }}
+        app.kubernetes.io/component: pgbouncer
+      annotations:
+        checksum/config: {{ .Values.pgbouncer.poolMode | sha256sum }}
+    spec:
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: pgbouncer
+          image: bitnami/pgbouncer:1.23.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: pgbouncer
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRESQL_HOST
+              value: {{ .Values.pgbouncer.pgHost | quote }}
+            - name: POSTGRESQL_PORT
+              value: {{ .Values.pgbouncer.pgPort | quote }}
+            - name: POSTGRESQL_USERNAME
+              value: {{ .Values.pgbouncer.pgUser | quote }}
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: POSTGRES_PASSWORD
+                  optional: true
+            - name: POSTGRESQL_DATABASE
+              value: {{ .Values.pgbouncer.pgDatabase | quote }}
+            - name: PGBOUNCER_POOL_MODE
+              value: {{ .Values.pgbouncer.poolMode | quote }}
+            - name: PGBOUNCER_MAX_CLIENT_CONN
+              value: {{ .Values.pgbouncer.maxClientConn | quote }}
+            - name: PGBOUNCER_DEFAULT_POOL_SIZE
+              value: {{ .Values.pgbouncer.defaultPoolSize | quote }}
+            - name: PGBOUNCER_AUTH_TYPE
+              value: "scram-sha-256"
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.pgbouncer.resources | nindent 12 }}
+          volumeMounts:
+            - name: pgbouncer-config
+              mountPath: /opt/bitnami/pgbouncer/conf
+              readOnly: true
+      volumes:
+        - name: pgbouncer-config
+          configMap:
+            name: {{ include "yaxter.fullname" . }}-pgbouncer-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "yaxter.pgbouncerServiceName" . }}
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "yaxter.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+  ports:
+    - name: pgbouncer
+      port: 5432
+      targetPort: pgbouncer
+      protocol: TCP

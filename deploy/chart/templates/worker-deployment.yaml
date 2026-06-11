@@ -1,0 +1,70 @@
+{{- range .Values.workers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "yaxter.fullname" $ }}-worker-{{ .name }}
+  labels:
+    {{- include "yaxter.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: worker
+    yaxter/worker-name: {{ .name | quote }}
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      {{- include "yaxter.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: worker
+      yaxter/worker-name: {{ .name | quote }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "yaxter.labels" $ | nindent 8 }}
+        app.kubernetes.io/component: worker
+        yaxter/worker-name: {{ .name | quote }}
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: worker
+          image: {{ include "yaxter.image" $ | quote }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["/app/worker"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "yaxter.apiConfigMapName" $ }}
+          env:
+            - name: WORKER_ROLES
+              value: {{ .roles | quote }}
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" $ }}
+                  key: POSTGRES_DSN
+            - name: AUTH_JWT_SEED_B64
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" $ }}
+                  key: AUTH_JWT_SEED_B64
+            - name: AUTH_JWT_KID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" $ }}
+                  key: AUTH_JWT_KID
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+{{- end }}
