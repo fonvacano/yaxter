@@ -196,4 +196,3 @@ func TestAuthRateLimitOverHTTP(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, last.Code)
 	require.NotEmpty(t, last.Header().Get("Retry-After"))
 }
-
