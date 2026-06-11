@@ -8,12 +8,12 @@ export function TimelineList() {
 
   return (
     <Async isLoading={isLoading} error={error} empty={!isLoading && tweets.length === 0}>
-      <div aria-label="home timeline">
+      <div className="feed" aria-label="home timeline">
         {tweets.map((t) => (
           <TweetCard key={String(t.id)} tweet={t} />
         ))}
         {hasNextPage && (
-          <button type="button" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+          <button type="button" className="btn-load" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
             {isFetchingNextPage ? 'Loading…' : 'Load more'}
           </button>
         )}

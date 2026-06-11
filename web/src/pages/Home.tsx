@@ -8,7 +8,7 @@ export default function Home() {
   if (session === 'loading') return <p role="status">Loading…</p>;
   if (session === 'anonymous')
     return (
-      <p>
+      <p className="notice">
         <Link to="/login">Log in</Link> or <Link to="/register">register</Link> to see your timeline.
       </p>
     );

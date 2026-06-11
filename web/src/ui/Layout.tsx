@@ -9,8 +9,8 @@ function NotificationsBell() {
   if (session !== 'authenticated') return null;
   const count = data?.count ?? 0;
   return (
-    <Link to="/notifications" aria-label="notifications">
-      🔔{count > 0 && <span aria-label="unread count">{count}</span>}
+    <Link to="/notifications" className="bell" aria-label="notifications">
+      🔔{count > 0 && <span className="badge" aria-label="unread count">{count}</span>}
     </Link>
   );
 }
@@ -18,15 +18,15 @@ function NotificationsBell() {
 export default function Layout() {
   const session = useSession();
   return (
-    <div>
-      <header>
-        <Link to="/">yaxter</Link>
-        <nav>
+    <div className="app">
+      <header className="topbar">
+        <Link to="/" className="brand">yaxter</Link>
+        <nav className="topnav">
           <NotificationsBell />
           {session === 'authenticated' ? (
-            <button type="button" onClick={() => tokenStore.clear()}>Log out</button>
+            <button type="button" className="btn-ghost" onClick={() => tokenStore.clear()}>Log out</button>
           ) : (
-            <Link to="/login">Log in</Link>
+            <Link to="/login" className="btn-ghost">Log in</Link>
           )}
         </nav>
       </header>

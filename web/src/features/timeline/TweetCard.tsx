@@ -25,19 +25,27 @@ export function TweetCard({ tweet }: { tweet: Tweet }) {
 
   const first = tweet.media?.[0];
   const imgSrc = first?.urls?.feed ?? first?.urls?.orig ?? null;
+  const avatarUrl = tweet.author.avatar_url;
+  const initial = tweet.author.username.charAt(0);
   return (
-    <article aria-label="tweet">
-      <header>
-        <Link to={"/u/" + tweet.author.username}>{tweet.author.username}</Link>
-      </header>
-      <p>{tweet.text}</p>
-      {imgSrc && <img src={imgSrc} alt="" loading="lazy" />}
-      <footer>
-        <button type="button" aria-label="like" aria-pressed={liked} onClick={toggleLike}>
-          ♥ {likes}
-        </button>
-        <span aria-label="retweets">↺ {tweet.retweets_count}</span>
-      </footer>
+    <article className="tweet" aria-label="tweet">
+      <Link to={"/u/" + tweet.author.username} className="avatar" aria-hidden="true">
+        {avatarUrl ? <img src={avatarUrl} alt="" /> : initial}
+      </Link>
+      <div className="tweet-main">
+        <div className="tweet-head">
+          <Link to={"/u/" + tweet.author.username} className="tweet-author">{tweet.author.username}</Link>
+          <span className="tweet-handle">@{tweet.author.username}</span>
+        </div>
+        <p className="tweet-text">{tweet.text}</p>
+        {imgSrc && <img className="tweet-media" src={imgSrc} alt="" loading="lazy" />}
+        <div className="tweet-actions">
+          <button type="button" className="action like" aria-label="like" aria-pressed={liked} onClick={toggleLike}>
+            ♥ {likes}
+          </button>
+          <span className="action" aria-label="retweets">↺ {tweet.retweets_count}</span>
+        </div>
+      </div>
     </article>
   );
 }
