@@ -58,7 +58,12 @@ func (h *AuthHandlers) tokenPairBody(p auth.TokenPair) TokenPair {
 	}
 }
 
-func privateUser(u auth.User, hasPassword bool) PrivateUser {
+// privateUserFromInfo builds the API user from real auth data: actual
+// HasPassword and the linked-provider list (T1.6).
+func privateUserFromInfo(u auth.User, providers []string) PrivateUser {
+	if providers == nil {
+		providers = []string{}
+	}
 	return PrivateUser{
 		Id:              formatID(u.ID),
 		Username:        u.Username,
@@ -67,10 +72,17 @@ func privateUser(u auth.User, hasPassword bool) PrivateUser {
 		FollowingCount:  0,
 		CreatedAt:       u.CreatedAt,
 		Email:           openapi_types.Email(u.Email),
-		HasPassword:     hasPassword,
-		LinkedProviders: []string{},
+		HasPassword:     u.HasPassword,
+		LinkedProviders: providers,
 		AvatarUrl:       nil,
 	}
+}
+
+// privateUser is the password-flow shim: Register/Login know the user just
+// authenticated with a password and carry no provider list yet.
+func privateUser(u auth.User, hasPassword bool) PrivateUser {
+	u.HasPassword = hasPassword
+	return privateUserFromInfo(u, nil)
 }
 
 func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
