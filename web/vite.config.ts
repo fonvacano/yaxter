@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // /v1 is proxied so the browser sees one origin — the deployed model
@@ -19,4 +19,5 @@ export default defineConfig({
       },
     },
   },
+  test: { environment: 'jsdom', globals: true, setupFiles: './src/test-setup.ts' },
 });
