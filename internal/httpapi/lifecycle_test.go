@@ -171,7 +171,7 @@ func registerAndLogin(t *testing.T, h http.Handler, username string) string {
 		"password": "password123",
 	}, map[string]string{"Idempotency-Key": username + "-reg-key"})
 	rr := postJSON(t, h, "/v1/auth/login", map[string]any{
-		"login":    username + "@test.io",
+		"login":    username,
 		"password": "password123",
 	}, nil)
 	var resp struct {
@@ -196,8 +196,8 @@ func TestAuthRateLimitOverHTTP(t *testing.T) {
 
 func TestUnimplementedRoutesReturn501(t *testing.T) {
 	h := liveHandler(t, 100)
-	// /v1/media is T1.5 — still unimplemented
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", nil)
+	// GET /v1/auth/providers is T1.6 — still unimplemented
+	req := httptest.NewRequest(http.MethodGet, "/v1/auth/providers", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusNotImplemented, rr.Code)

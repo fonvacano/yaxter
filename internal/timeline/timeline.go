@@ -190,7 +190,7 @@ func (s *Service) hydratePage(ctx context.Context, ids []int64, cursor int64, li
 			continue
 		}
 		if len(out) == limit {
-			n := id
+			n := out[len(out)-1].ID // cursor = last item on this page (next page: id < cursor)
 			next = &n
 			break
 		}
