@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.122"
+    }
+  }
+}
+
 # Object Storage buckets + optional CDN.
 #
 # media bucket — private; application access via pre-signed URLs and IAM SA keys.
@@ -72,24 +81,24 @@ resource "yandex_cdn_origin_group" "media" {
 resource "yandex_cdn_resource" "media" {
   count = var.cdn_enabled ? 1 : 0
 
-  cname             = "media-cdn.${var.app_name}.internal"
-  folder_id         = var.folder_id
-  active            = true
-  origin_group_id   = yandex_cdn_origin_group.media[0].id
-  origin_protocol   = "https"
+  cname           = "media-cdn.${var.app_name}.internal"
+  folder_id       = var.folder_id
+  active          = true
+  origin_group_id = yandex_cdn_origin_group.media[0].id
+  origin_protocol = "https"
 
   options {
-    allowed_http_methods   = ["GET", "HEAD", "OPTIONS"]
-    browser_cache_settings = 86400
-    cache_http_headers     = ["ETag", "Last-Modified", "Content-Type"]
-    cors                   = ["*"]
-    gzip_on                = true
-    ignore_query_params    = false
-    static_request_headers = {}
+    allowed_http_methods    = ["GET", "HEAD", "OPTIONS"]
+    browser_cache_settings  = 86400
+    cache_http_headers      = ["ETag", "Last-Modified", "Content-Type"]
+    cors                    = ["*"]
+    gzip_on                 = true
+    ignore_query_params     = false
+    static_request_headers  = {}
     static_response_headers = {}
   }
 
   ssl_certificate {
-    type = "not_managed"
+    type = "not_used"
   }
 }

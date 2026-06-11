@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.122"
+    }
+  }
+}
+
 # Managed Redis cluster.
 # Demo: 1 host, b2.medium, no persistence, no sharding.
 # Prod: 6 shards × 3 replicas, s3.medium, sharded=true.
@@ -14,8 +23,8 @@ locals {
   # sharded=true  → shard_count * replica_count hosts distributed across AZs
   hosts = [
     for idx in range(local.shard_count * var.replica_count) : {
-      zone      = var.az_names[idx % length(var.az_names)]
-      subnet_id = var.subnet_ids[idx % length(var.subnet_ids)]
+      zone       = var.az_names[idx % length(var.az_names)]
+      subnet_id  = var.subnet_ids[idx % length(var.subnet_ids)]
       shard_name = var.sharded ? "shard${floor(idx / var.replica_count)}" : "shard0"
     }
   ]

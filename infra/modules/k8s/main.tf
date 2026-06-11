@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.122"
+    }
+  }
+}
+
 # Managed Kubernetes cluster.
 # Demo: zonal master (ru-central1-a), 1 node group, 2 preemptible s2.small nodes.
 # Prod: regional master (3 AZs), 3 node groups, autoscale 6→30 s2.large non-preemptible.

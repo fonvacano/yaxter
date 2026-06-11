@@ -23,9 +23,9 @@ resource "yandex_iam_service_account_static_access_key" "tf_state" {
 
 # Object Storage bucket for Terraform state.
 resource "yandex_storage_bucket" "tf_state" {
-  bucket     = var.bucket_name
-  acl        = "private"
-  folder_id  = var.folder_id
+  bucket    = var.bucket_name
+  acl       = "private"
+  folder_id = var.folder_id
 
   access_key = yandex_iam_service_account_static_access_key.tf_state.access_key
   secret_key = yandex_iam_service_account_static_access_key.tf_state.secret_key
@@ -34,13 +34,8 @@ resource "yandex_storage_bucket" "tf_state" {
     enabled = true
   }
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "aws:kms"
-      }
-    }
-  }
+  # YC Object Storage encrypts data at rest by default; explicit KMS key can be
+  # added via kms_master_key_id if a customer-managed key is required.
 }
 
 # YDB serverless database for state locking.

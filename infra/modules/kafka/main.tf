@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.122"
+    }
+  }
+}
+
 # Managed Kafka cluster.
 # Demo: 1 broker, s2.micro, 32 GB, RF=1, min.insync=1.
 # Prod: 3+ brokers across AZs, s3.medium, RF=3, min.insync=2.
@@ -38,21 +47,20 @@ resource "yandex_mdb_kafka_cluster" "this" {
         disk_type_id       = var.broker_disk_type
       }
 
-      kafka_config = {
-        compression_type                = "LZ4"
-        default_replication_factor      = tostring(var.replication_factor)
-        min_insync_replicas             = tostring(var.min_insync_replicas)
-        num_partitions                  = "3"
-        auto_create_topics_enable       = false
-        log_flush_interval_messages     = "9223372036854775807"
-        log_flush_interval_ms           = "1000"
-        log_retention_bytes             = "-1"
-        log_retention_hours             = "168"
-        log_segment_bytes               = "1073741824"
-        message_max_bytes               = "1048588"
-        replica_fetch_max_bytes         = "1048576"
-        socket_receive_buffer_bytes     = "102400"
-        socket_send_buffer_bytes        = "102400"
+      kafka_config {
+        compression_type            = "LZ4"
+        default_replication_factor  = var.replication_factor
+        num_partitions              = 3
+        auto_create_topics_enable   = false
+        log_flush_interval_messages = 9223372036854775807
+        log_flush_interval_ms       = 1000
+        log_retention_bytes         = -1
+        log_retention_hours         = 168
+        log_segment_bytes           = 1073741824
+        message_max_bytes           = 1048588
+        replica_fetch_max_bytes     = 1048576
+        socket_receive_buffer_bytes = 102400
+        socket_send_buffer_bytes    = 102400
       }
     }
   }
@@ -73,10 +81,10 @@ resource "yandex_mdb_kafka_topic" "tweets_v1" {
   partitions         = var.partitions_tweets
   replication_factor = var.replication_factor
 
-  topic_config = {
-    min_insync_replicas = tostring(var.min_insync_replicas)
-    retention_ms        = "604800000" # 7 days
-    segment_bytes       = "1073741824"
+  topic_config {
+    min_insync_replicas = var.min_insync_replicas
+    retention_ms        = 604800000 # 7 days
+    segment_bytes       = 1073741824
   }
 }
 
@@ -86,10 +94,10 @@ resource "yandex_mdb_kafka_topic" "engagements_v1" {
   partitions         = var.partitions_engagements
   replication_factor = var.replication_factor
 
-  topic_config = {
-    min_insync_replicas = tostring(var.min_insync_replicas)
-    retention_ms        = "604800000"
-    segment_bytes       = "1073741824"
+  topic_config {
+    min_insync_replicas = var.min_insync_replicas
+    retention_ms        = 604800000
+    segment_bytes       = 1073741824
   }
 }
 
@@ -99,10 +107,10 @@ resource "yandex_mdb_kafka_topic" "follows_v1" {
   partitions         = var.partitions_follows
   replication_factor = var.replication_factor
 
-  topic_config = {
-    min_insync_replicas = tostring(var.min_insync_replicas)
-    retention_ms        = "604800000"
-    segment_bytes       = "1073741824"
+  topic_config {
+    min_insync_replicas = var.min_insync_replicas
+    retention_ms        = 604800000
+    segment_bytes       = 1073741824
   }
 }
 
@@ -112,10 +120,10 @@ resource "yandex_mdb_kafka_topic" "media_v1" {
   partitions         = var.partitions_media
   replication_factor = var.replication_factor
 
-  topic_config = {
-    min_insync_replicas = tostring(var.min_insync_replicas)
-    retention_ms        = "604800000"
-    segment_bytes       = "1073741824"
+  topic_config {
+    min_insync_replicas = var.min_insync_replicas
+    retention_ms        = 604800000
+    segment_bytes       = 1073741824
   }
 }
 

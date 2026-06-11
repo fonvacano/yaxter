@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.122"
+    }
+  }
+}
+
 # ─── VPC ─────────────────────────────────────────────────────────────────────
 
 resource "yandex_vpc_network" "this" {
@@ -48,8 +57,8 @@ resource "yandex_vpc_gateway" "nat" {
 resource "yandex_vpc_route_table" "private" {
   count = var.az_count
 
-  name      = "${var.app_name}-rt-private-${var.az_names[count.index]}"
-  folder_id = var.folder_id
+  name       = "${var.app_name}-rt-private-${var.az_names[count.index]}"
+  folder_id  = var.folder_id
   network_id = yandex_vpc_network.this.id
 
   static_route {

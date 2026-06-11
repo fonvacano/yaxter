@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.122"
+    }
+  }
+}
+
 # Managed PostgreSQL — one cluster per physical shard.
 # Demo: physical_shards=1 → 1 cluster, 1 host, b2.medium.
 # Prod: physical_shards=4 → 4 clusters, 3 hosts each (cross-AZ HA), s3.large.
@@ -41,7 +50,7 @@ resource "yandex_mdb_postgresql_cluster" "shard" {
 
     postgresql_config = {
       # Enable logical replication (required for future CDC / outbox relay use).
-      "wal_level"               = "LOGICAL"
+      "wal_level" = "LOGICAL"
       # Autovacuum tuning for high-churn outbox table.
       "autovacuum_vacuum_scale_factor"  = "0.01"
       "autovacuum_analyze_scale_factor" = "0.05"
@@ -70,7 +79,7 @@ resource "yandex_mdb_postgresql_cluster" "shard" {
       subnet_id = host.value.subnet_id
 
       # First host is primary; additional hosts are replicas.
-      assign_public_ip = false
+      assign_public_ip   = false
       replication_source = host.value.host_idx == 0 ? "" : null
     }
   }

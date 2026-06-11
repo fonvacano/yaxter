@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.122"
+    }
+  }
+}
+
 # Application Load Balancer.
 # Path routing:
 #   /v1/*   → api backend (k8s NodePort / target group referencing node IPs)
@@ -49,7 +58,7 @@ resource "yandex_alb_backend_group" "web" {
     # S3 static website hostname.
     target_group_ids = []
 
-    storageBucket = var.web_bucket_name
+    storage_bucket = var.web_bucket_name
 
     healthcheck {
       timeout             = "10s"
@@ -119,8 +128,8 @@ resource "yandex_alb_virtual_host" "this" {
 # ─── Load Balancer ────────────────────────────────────────────────────────────
 
 resource "yandex_alb_load_balancer" "this" {
-  name      = "${var.app_name}-alb"
-  folder_id = var.folder_id
+  name       = "${var.app_name}-alb"
+  folder_id  = var.folder_id
   network_id = var.network_id
 
   security_group_ids = [var.alb_sg_id]
