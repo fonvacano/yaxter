@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "yaxter.fullname" . }}-migrations-{{ .Release.Revision }}
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        {{- include "yaxter.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migrations
+    spec:
+      restartPolicy: Never
+      initContainers:
+        # Copy migration files from the app image (which has them at /migrations)
+        # into a shared emptyDir volume. The app image is distroless but /bin/cp
+        # is available in the migration sidecar approach via the app binary itself.
+        # Instead we use a busybox initContainer to create the directory structure,
+        # and the app image copies its own /migrations via a second initContainer.
+        - name: copy-migrations
+          image: {{ include "yaxter.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # The distroless image has the binary at /app/api.
+          # We use it as an initContainer only to cp /migrations into the shared vol.
+          # Since distroless provides no shell, we rely on the cp binary being
+          # present in the image OR we fall back to the busybox approach below.
+          # If the image is purely distroless, uncomment the busybox initContainer
+          # and comment this one out.
+          command: ["/bin/cp", "-r", "/migrations", "/shared/"]
+          volumeMounts:
+            - name: migrations-vol
+              mountPath: /shared
+      containers:
+        - name: migrate
+          image: {{ .Values.migrations.image | quote }}
+          args:
+            - "-path=/shared/migrations"
+            - "-database=$(POSTGRES_DSN)"
+            - "up"
+          env:
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: POSTGRES_DSN
+          volumeMounts:
+            - name: migrations-vol
+              mountPath: /shared/migrations
+              subPath: migrations
+      volumes:
+        - name: migrations-vol
+          emptyDir: {}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532

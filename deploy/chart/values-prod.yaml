@@ -1,0 +1,105 @@
+# Production environment overrides — full sizing, per-role workers, canary enabled
+image:
+  repository: cr.yandex/REGISTRY_ID/yaxter
+  tag: latest
+
+api:
+  replicas: 20
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 1Gi
+  config:
+    httpAddr: ":8080"
+    celebrityThreshold: "10000"
+    mediaBaseUrl: "https://media.prod.example.com"
+    kafkaBrokers: "yaxter-kafka-0:9092,yaxter-kafka-1:9092,yaxter-kafka-2:9092"
+    redisAddr: "yaxter-redis-master:6379"
+
+hpa:
+  minReplicas: 20
+  maxReplicas: 60
+  cpuTargetPercent: 60
+  rpsMetricEnabled: false
+
+workers:
+  - name: relay
+    roles: "relay"
+    replicas: 2
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+  - name: fanout
+    roles: "fanout"
+    replicas: 8
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 2000m
+        memory: 1Gi
+  - name: counters
+    roles: "counters"
+    replicas: 4
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+  - name: notifications
+    roles: "notifications"
+    replicas: 2
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+  - name: media
+    roles: "media"
+    replicas: 4
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 2000m
+        memory: 1Gi
+
+pgbouncer:
+  replicas: 2
+  poolMode: transaction
+  maxClientConn: 1000
+  defaultPoolSize: 50
+  pgHost: "yaxter-postgres"
+  pgPort: "5432"
+  pgUser: "yaxter"
+  pgDatabase: "yaxter"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+rollouts:
+  enabled: true
+  canaryWeight: 20
+  stableWeight: 80
+
+monitoring:
+  enabled: false  # T3.3 deferred
+
+domain: prod.example.com

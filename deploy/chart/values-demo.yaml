@@ -1,0 +1,63 @@
+# Demo environment overrides — conservative sizing, all-roles single worker pod
+image:
+  repository: cr.yandex/REGISTRY_ID/yaxter
+  tag: latest
+
+api:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  config:
+    httpAddr: ":8080"
+    celebrityThreshold: "50"
+    mediaBaseUrl: "https://media.demo.example.com"
+    kafkaBrokers: "yaxter-kafka:9092"
+    redisAddr: "yaxter-redis-master:6379"
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 4
+  cpuTargetPercent: 70
+  rpsMetricEnabled: false
+
+workers:
+  - name: all-roles
+    roles: "relay,fanout,counters,notifications,media"
+    replicas: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+
+pgbouncer:
+  replicas: 1
+  poolMode: transaction
+  maxClientConn: 100
+  defaultPoolSize: 20
+  pgHost: "yaxter-postgres"
+  pgPort: "5432"
+  pgUser: "yaxter"
+  pgDatabase: "yaxter"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+rollouts:
+  enabled: false
+
+monitoring:
+  enabled: false
+
+domain: demo.example.com

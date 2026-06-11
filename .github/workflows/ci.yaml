@@ -118,3 +118,94 @@ jobs:
         with:
           name: web-dist
           path: web/dist
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: yaxter:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/yaxter-image.tar
+      - name: Push image (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            cr.yandex/${{ secrets.YC_CR_REGISTRY_ID }}/yaxter:${{ github.sha }}
+            cr.yandex/${{ secrets.YC_CR_REGISTRY_ID }}/yaxter:latest
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          input: /tmp/yaxter-image.tar
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+  helm-render:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint chart
+        run: helm lint deploy/chart
+      - name: Template demo values
+        run: helm template yaxter deploy/chart -f deploy/chart/values-demo.yaml > /dev/null
+      - name: Template prod values
+        run: helm template yaxter deploy/chart -f deploy/chart/values-prod.yaml > /dev/null
+
+  terraform:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+      - name: Format check
+        run: terraform -chdir=infra fmt -check -recursive
+      - name: Init (no backend)
+        run: terraform -chdir=infra init -backend=false
+      - name: Validate
+        run: terraform -chdir=infra validate
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, image, contracts, web]
+    if: github.ref == 'refs/heads/main' && vars.YC_DEPLOY_ENABLED == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Install YC CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -a
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+      - name: Authenticate to YC
+        run: |
+          echo "${{ secrets.YC_SA_KEY_JSON }}" > /tmp/sa-key.json
+          yc config set service-account-key /tmp/sa-key.json
+          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+          yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+      - name: Get kubeconfig for demo cluster
+        run: yc managed-kubernetes cluster get-credentials ${{ secrets.YC_K8S_CLUSTER_ID }} --external --kubeconfig /tmp/kubeconfig
+      - name: Log in to Container Registry
+        run: |
+          yc container registry configure-docker
+      - name: Deploy to demo cluster
+        run: |
+          helm upgrade --install yaxter deploy/chart \
+            --kubeconfig /tmp/kubeconfig \
+            -f deploy/chart/values-demo.yaml \
+            --set image.tag=${{ github.sha }} \
+            --set image.repository=cr.yandex/${{ secrets.YC_CR_REGISTRY_ID }}/yaxter \
+            --wait --timeout=10m
+      - name: Verify rollout
+        run: kubectl --kubeconfig /tmp/kubeconfig rollout status deployment/yaxter-api --timeout=5m

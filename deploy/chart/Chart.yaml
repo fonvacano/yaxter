@@ -1,0 +1,11 @@
+apiVersion: v2
+name: yaxter
+description: Twitter-like demo app — one chart, two sizes (demo / prod)
+type: application
+version: 0.1.0
+appVersion: latest
+keywords:
+  - twitter-demo
+  - social
+maintainers:
+  - name: yaxter-team

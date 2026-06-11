@@ -1,0 +1,77 @@
+image:
+  repository: cr.yandex/REGISTRY_ID/yaxter
+  tag: latest
+  pullPolicy: IfNotPresent
+
+api:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  config:
+    httpAddr: ":8080"
+    celebrityThreshold: "50"
+    mediaBaseUrl: "https://media.example.com"
+    kafkaBrokers: "localhost:9092"
+    redisAddr: "localhost:6379"
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 4
+  cpuTargetPercent: 70
+  rpsMetricEnabled: false
+
+workers:
+  - name: all-roles
+    roles: "relay,fanout,counters,notifications,media"
+    replicas: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+
+pgbouncer:
+  replicas: 1
+  poolMode: transaction
+  maxClientConn: 100
+  defaultPoolSize: 20
+  # PG backend connection details — filled from secrets / external-secrets
+  pgHost: "postgres"
+  pgPort: "5432"
+  pgUser: "yaxter"
+  pgDatabase: "yaxter"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+migrations:
+  image: migrate/migrate:v4.18.1
+
+externalSecrets:
+  refreshInterval: 1h
+  lockboxSecretIds:
+    postgresDsn: ""    # Lockbox secret ID — filled from Terraform outputs
+    jwtSeed: ""
+    oauthSecrets: ""
+
+rollouts:
+  enabled: false
+  canaryWeight: 0
+  stableWeight: 100
+
+monitoring:
+  enabled: false
+  metricsPort: 9090
+
+domain: example.com

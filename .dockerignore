@@ -1,0 +1,9 @@
+.git
+bin/
+worker
+docs/
+web/node_modules/
+web/dist/
+*.md
+!go.mod
+!go.sum

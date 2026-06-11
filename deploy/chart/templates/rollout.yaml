@@ -1,0 +1,93 @@
+{{- if .Values.rollouts.enabled }}
+# Argo Rollouts canary — replaces the api Deployment when rollouts.enabled=true.
+# The api-deployment.yaml is guarded with a negated rollouts.enabled check
+# so exactly one of the two creates the api workload.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "yaxter.fullname" . }}-api
+  labels:
+    {{- include "yaxter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      {{- include "yaxter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  strategy:
+    canary:
+      canaryWeight: {{ .Values.rollouts.canaryWeight }}
+      stableWeight: {{ .Values.rollouts.stableWeight }}
+      steps:
+        - setWeight: {{ .Values.rollouts.canaryWeight }}
+        - pause: {}
+        - setWeight: 50
+        - pause:
+            duration: 5m
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        {{- include "yaxter.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      annotations:
+        checksum/config: {{ include "yaxter.apiConfigMapName" . | sha256sum }}
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: api
+          image: {{ include "yaxter.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/app/api"]
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "yaxter.apiConfigMapName" . }}
+          env:
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: POSTGRES_DSN
+            - name: AUTH_JWT_SEED_B64
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: AUTH_JWT_SEED_B64
+            - name: AUTH_JWT_KID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: AUTH_JWT_KID
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yaxter.secretName" . }}
+                  key: OAUTH_CLIENT_SECRET
+                  optional: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+{{- end }}
