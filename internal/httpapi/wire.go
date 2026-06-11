@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/fonvacano/yaxter/internal/auth"
 	"github.com/fonvacano/yaxter/internal/notifications"
+	"github.com/fonvacano/yaxter/internal/timeline"
 	"github.com/fonvacano/yaxter/internal/tweets"
 	"github.com/fonvacano/yaxter/internal/users"
 	"github.com/fonvacano/yaxter/pkg/idem"
@@ -50,7 +52,11 @@ func NewHandler(d Deps) (http.Handler, error) {
 	usersSvc := users.NewService(d.DB, d.Redis, d.IDs, d.CelebrityThreshold)
 	tweetsSvc := tweets.NewService(d.DB, d.Redis, d.IDs)
 	notifSvc := notifications.NewService(d.DB)
-	srv := NewServer(svc, usersSvc, d.MediaBaseURL, tweetsSvc, notifSvc)
+	timelineSvc, err := timeline.NewService(d.DB, d.Redis, tweetsSvc, d.CelebrityThreshold)
+	if err != nil {
+		return nil, fmt.Errorf("timeline service: %w", err)
+	}
+	srv := NewServer(svc, usersSvc, d.MediaBaseURL, tweetsSvc, notifSvc, timelineSvc)
 
 	h := HandlerWithOptions(srv, StdHTTPServerOptions{BaseURL: "/v1"})
 	h = BearerAuth(issuer.Verify)(h)

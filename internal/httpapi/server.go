@@ -8,6 +8,7 @@ import (
 
 	"github.com/fonvacano/yaxter/internal/auth"
 	"github.com/fonvacano/yaxter/internal/notifications"
+	"github.com/fonvacano/yaxter/internal/timeline"
 	"github.com/fonvacano/yaxter/internal/tweets"
 	"github.com/fonvacano/yaxter/internal/users"
 )
@@ -17,14 +18,16 @@ type Server struct {
 	Users         *UsersHandlers
 	Tweets        *TweetsHandlers
 	Notifications *NotificationsHandlers
+	Timeline      *TimelineHandlers
 }
 
-func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string, tweetsSvc *tweets.Service, notifSvc *notifications.Service) *Server {
+func NewServer(authSvc *auth.Service, usersSvc *users.Service, mediaBaseURL string, tweetsSvc *tweets.Service, notifSvc *notifications.Service, timelineSvc *timeline.Service) *Server {
 	return &Server{
 		Auth:          &AuthHandlers{svc: authSvc},
 		Users:         &UsersHandlers{svc: usersSvc, mediaBaseURL: mediaBaseURL},
 		Tweets:        &TweetsHandlers{svc: tweetsSvc, mediaBaseURL: mediaBaseURL},
 		Notifications: &NotificationsHandlers{svc: notifSvc, mediaBaseURL: mediaBaseURL},
+		Timeline:      &TimelineHandlers{svc: timelineSvc, mediaBaseURL: mediaBaseURL},
 	}
 }
 
@@ -75,7 +78,7 @@ func (s *Server) ListFollowing(w http.ResponseWriter, r *http.Request, username 
 	s.Users.ListFollowing(w, r, username, params)
 }
 func (s *Server) GetUserTweets(w http.ResponseWriter, r *http.Request, username Username, params GetUserTweetsParams) {
-	unimplemented(w) // T2.4
+	s.Timeline.UserTweets(w, r, string(username), params)
 }
 
 func (s *Server) CreateTweet(w http.ResponseWriter, r *http.Request, params CreateTweetParams) {
@@ -103,7 +106,7 @@ func (s *Server) LikeTweet(w http.ResponseWriter, r *http.Request, id TweetId, p
 }
 
 func (s *Server) GetHomeTimeline(w http.ResponseWriter, r *http.Request, params GetHomeTimelineParams) {
-	unimplemented(w) // T2.4
+	s.Timeline.Home(w, r, params)
 }
 
 func (s *Server) CreateMedia(w http.ResponseWriter, r *http.Request, params CreateMediaParams) {
