@@ -19,7 +19,7 @@ test('home shows login prompt when anonymous', async ({ page }) => {
     await route.fulfill({ status: 401, body: '{}' });
   });
   await page.goto('/');
-  await expect(page.getByRole('link', { name: /log in/i })).toBeVisible({ timeout: 5000 });
+  await expect(page.getByRole('link', { name: /log in/i }).first()).toBeVisible({ timeout: 5000 });
 });
 
 test('compose form renders for an authed session', async ({ page }) => {

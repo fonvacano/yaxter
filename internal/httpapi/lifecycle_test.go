@@ -197,11 +197,3 @@ func TestAuthRateLimitOverHTTP(t *testing.T) {
 	require.NotEmpty(t, last.Header().Get("Retry-After"))
 }
 
-func TestUnimplementedRoutesReturn501(t *testing.T) {
-	h := liveHandler(t, 100)
-	// GET /v1/auth/providers is T1.6 — still unimplemented
-	req := httptest.NewRequest(http.MethodGet, "/v1/auth/providers", nil)
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-	require.Equal(t, http.StatusNotImplemented, rr.Code)
-}
