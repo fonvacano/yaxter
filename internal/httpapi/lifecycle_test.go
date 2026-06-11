@@ -151,6 +151,41 @@ func TestFullTokenLifecycleOverHTTP(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, dead.Code)
 }
 
+func getJSON(t *testing.T, h http.Handler, path string, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, path, nil)
+	require.NoError(t, err)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	return rr
+}
+
+func registerAndLogin(t *testing.T, h http.Handler, username string) string {
+	t.Helper()
+	reg := postJSON(t, h, "/v1/auth/register", map[string]any{
+		"username": username,
+		"email":    username + "@test.io",
+		"password": "password123",
+	}, map[string]string{"Idempotency-Key": "a0000000-0000-0000-0000-" + fmt.Sprintf("%012x", len(username))})
+	require.Equal(t, http.StatusCreated, reg.Code, reg.Body.String())
+	rr := postJSON(t, h, "/v1/auth/login", map[string]any{
+		"login":    username,
+		"password": "password123",
+	}, nil)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	var resp struct {
+		Tokens struct {
+			AccessToken string `json:"access_token"`
+		} `json:"tokens"`
+	}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.NotEmpty(t, resp.Tokens.AccessToken)
+	return resp.Tokens.AccessToken
+}
+
 func TestAuthRateLimitOverHTTP(t *testing.T) {
 	h := liveHandler(t, 3)
 	var last *httptest.ResponseRecorder
@@ -164,8 +199,8 @@ func TestAuthRateLimitOverHTTP(t *testing.T) {
 
 func TestUnimplementedRoutesReturn501(t *testing.T) {
 	h := liveHandler(t, 100)
-	// /v1/timeline is T2.4 — still unimplemented
-	req := httptest.NewRequest(http.MethodGet, "/v1/timeline", nil)
+	// GET /v1/auth/providers is T1.6 — still unimplemented
+	req := httptest.NewRequest(http.MethodGet, "/v1/auth/providers", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusNotImplemented, rr.Code)
